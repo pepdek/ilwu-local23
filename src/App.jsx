@@ -161,20 +161,43 @@ function parseSpinCSV(csv) {
     }));
 }
 
-const TABS = ["A", "B", "Casual"];
+// Fetch A + B in parallel, then probe Casual tab name variants sequentially
+// until one returns actual data. The real tab is "C" but we try others as fallback.
+async function fetchTabsForSheet(sheetId, label) {
+  const [rA, rB] = await Promise.all([
+    fetch(csvUrl(sheetId, "A")),
+    fetch(csvUrl(sheetId, "B")),
+  ]);
+  const [cA, cB] = await Promise.all([rA.text(), rB.text()]);
+  console.log(`[${label} / A] first 200:`, cA.slice(0, 200));
+  console.log(`[${label} / B] first 200:`, cB.slice(0, 200));
+  const spinsAB = [...parseSpinCSV(cA), ...parseSpinCSV(cB)];
+
+  // Try Casual tab variants — "C" is the confirmed name, others are fallback
+  let spinsC = [];
+  for (const tabName of ["C", "Casual", "CASUAL", "casual"]) {
+    try {
+      const rC = await fetch(csvUrl(sheetId, tabName));
+      const cC = await rC.text();
+      const parsed = parseSpinCSV(cC);
+      if (parsed.length > 0) {
+        spinsC = parsed;
+        console.log(`Casual tab found as: "${tabName}" — ${parsed.length} records. First reg: ${parsed[0]?.reg}`);
+        break;
+      }
+    } catch { continue; }
+  }
+
+  return [...spinsAB, ...spinsC];
+}
 
 async function fetchAllCSVs() {
-  const pairs = SHEETS.flatMap(sh => TABS.map(tab => ({ sh, tab })));
   const results = await Promise.all(
-    pairs.map(({ sh, tab }) =>
-      fetch(csvUrl(sh.id, tab))
-        .then(r => r.text())
-        .then(csv => {
-          console.log(`[${sh.label} / ${tab}] first 200 chars:`, csv.slice(0, 200));
-          return { sheetId: sh.id, spins: parseSpinCSV(csv) };
-        })
+    SHEETS.map(sh =>
+      fetchTabsForSheet(sh.id, sh.label)
+        .then(spins => ({ sheetId: sh.id, spins }))
         .catch(err => {
-          console.warn(`fetch failed [${sh.label} / ${tab}]`, err);
+          console.warn(`fetch failed [${sh.label}]`, err);
           return { sheetId: sh.id, spins: [] };
         })
     )
@@ -321,7 +344,21 @@ function Onboarding({ onSave }) {
 
 // ─── WEEK CARD ────────────────────────────────────────────────────────────────
 function WeekCard({ sheet, record, todayIdx, isCurrent }) {
-  // Top-3 for cell highlighting
+  // Initial state: today for current week, Saturday (0) for next week.
+  // useEffect below will update to best day once record loads.
+  const [selDay, setSelDay] = useState(isCurrent ? todayIdx : 0);
+
+  // Whenever record arrives or changes, jump to the best spin day.
+  useEffect(() => {
+    if (!record) return;
+    const best = DAYS_KEY
+      .map((dk, i) => ({ i, spin: record[dk] ?? Infinity }))
+      .filter(d => d.spin !== Infinity)
+      .sort((a, b) => a.spin - b.spin)[0];
+    if (best !== undefined) setSelDay(best.i);
+  }, [record?.reg, sheet.id]); // re-run when the member or sheet changes
+
+  // Top-3 for cell highlighting (re-computed each render)
   const rankedDays = DAYS_KEY
     .map((dk, i) => ({ day:i, spin: record?.[dk] ?? Infinity }))
     .filter(d => d.spin !== Infinity && d.spin !== null)
@@ -330,18 +367,19 @@ function WeekCard({ sheet, record, todayIdx, isCurrent }) {
   const rankMap = {};
   rankedDays.forEach((d, i) => { rankMap[d.day] = i; });
 
-  // Single best day (all 7 days ranked) — default selection
-  const bestIdx = DAYS_KEY
-    .map((dk, i) => ({ i, spin: record?.[dk] ?? Infinity }))
-    .sort((a, b) => a.spin - b.spin)[0]?.i ?? (isCurrent ? todayIdx : 0);
+  // Single best index — null when record not yet loaded
+  const bestIdx = record
+    ? DAYS_KEY
+        .map((dk, i) => ({ i, spin: record[dk] ?? Infinity }))
+        .sort((a, b) => a.spin - b.spin)[0]?.i
+    : null;
 
-  const [selDay, setSelDay] = useState(bestIdx);
   const heroSpin = record?.[DAYS_KEY[selDay]] ?? null;
 
   const heroLabel =
-    selDay === bestIdx && isCurrent  ? "BEST THIS WEEK" :
-    selDay === bestIdx && !isCurrent ? "BEST NEXT WEEK" :
-    selDay === todayIdx && isCurrent ? `TODAY · ${DAYS_FULL[selDay].toUpperCase()}` :
+    bestIdx !== null && selDay === bestIdx && isCurrent  ? "BEST THIS WEEK" :
+    bestIdx !== null && selDay === bestIdx && !isCurrent ? "BEST NEXT WEEK" :
+    isCurrent && selDay === todayIdx                     ? `TODAY · ${DAYS_FULL[selDay].toUpperCase()}` :
     DAYS_FULL[selDay].toUpperCase();
 
   return (
