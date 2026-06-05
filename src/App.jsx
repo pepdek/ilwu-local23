@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import * as XLSX from "xlsx";
 
 // ─── COLOUR TOKENS ────────────────────────────────────────────────────────────
 const C = {
@@ -12,7 +13,7 @@ const C = {
   border: "#E8E5DC",
 };
 
-// ─── DATA ─────────────────────────────────────────────────────────────────────
+// ─── SPIN SHEET DATA ──────────────────────────────────────────────────────────
 const SHEETS = [
   {
     id: "1hnw6TCvT7z71hxFv8Fn2L2G08yAaBdegwRLiUttyug8",
@@ -26,8 +27,6 @@ const SHEETS = [
   },
 ];
 
-// NOTE: export?format=csv ignores the sheet= tab name and always returns the
-// first sheet. gviz/tq?tqx=out:csv (no filter) correctly routes to named tabs.
 const csvUrl = (id, tab) =>
   `https://docs.google.com/spreadsheets/d/${id}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(tab)}`;
 
@@ -50,7 +49,77 @@ const FALLBACK = {
   ],
 };
 
-// ─── LIVE NIGHT BOARD 6/4/26 ─────────────────────────────────────────────────
+// ─── VESSEL FETCH ─────────────────────────────────────────────────────────────
+const SEATTLE_EXCLUDE = ["T18","T5","T30","T46","Duwamish"];
+const DAY_NAMES   = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
+const MONTH_NAMES = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+
+function formatETA(date) {
+  return `${DAY_NAMES[date.getDay()]} ${MONTH_NAMES[date.getMonth()]} ${date.getDate()}`;
+}
+
+async function fetchVessels() {
+  const DIRECT = "https://docs.nwseaportalliance.com/Vessel/Schedule.xls";
+  const PROXY  = "/.netlify/functions/vessels";
+  let buf;
+  try {
+    const res = await fetch(DIRECT);
+    if (!res.ok) throw new Error("direct failed");
+    buf = await res.arrayBuffer();
+  } catch {
+    try {
+      const res = await fetch(PROXY);
+      if (!res.ok) throw new Error("proxy failed");
+      buf = await res.arrayBuffer();
+    } catch { return null; }
+  }
+
+  const wb   = XLSX.read(buf, { type:"array", cellDates:true });
+  const ws   = wb.Sheets[wb.SheetNames[0]];
+  const rows = XLSX.utils.sheet_to_json(ws, { header:1, raw:false });
+
+  const hi = rows.findIndex(r => r.some(c => String(c).includes("Vessel Name")));
+  if (hi === -1) return null;
+  const h   = rows[hi].map(c => String(c).trim());
+  const col = k => h.findIndex(x => x.includes(k));
+  const cName = col("Vessel Name"), cTerm = col("Terminal"), cBerth = col("Berth"),
+        cCargo = col("Cargo"),      cETA  = col("ETA"),      cETD   = col("ETD"),
+        cWay   = col("Water");
+
+  const now    = new Date();
+  const minus1 = new Date(now - 86400000);
+  const plus10 = new Date(now.getTime() + 10 * 86400000);
+
+  return rows.slice(hi + 1)
+    .filter(r => {
+      const terminal = String(r[cTerm] || r[cBerth] || "").trim();
+      const waterway = String(r[cWay]  || "").trim();
+      const eta      = r[cETA] ? new Date(r[cETA]) : null;
+      // Filter by waterway: Blair and Sitcum are Tacoma; E Duwamish is Seattle
+      const isTacoma = (waterway === "Blair" || waterway.includes("Sitcum")) &&
+                       !SEATTLE_EXCLUDE.some(t => waterway.includes(t) || terminal.includes(t));
+      return isTacoma && eta && !isNaN(eta) && eta >= minus1 && eta <= plus10 && r[cName];
+    })
+    .map(r => {
+      const eta = new Date(r[cETA]);
+      const etd = r[cETD] ? new Date(r[cETD]) : null;
+      const status = eta <= now && etd && etd >= now ? "in-port"
+                   : etd && etd < now               ? "departed"
+                   : "upcoming";
+      return {
+        name:     String(r[cName]).trim(),
+        terminal: String(r[cTerm] || r[cBerth] || "").trim(),
+        cargo:    String(r[cCargo] || "").trim(),
+        eta:      formatETA(eta),
+        etaDate:  eta,
+        status,
+      };
+    })
+    .sort((a, b) => a.etaDate - b.etaDate)
+    .slice(0, 10);
+}
+
+// ─── WORK BOARD DATA ──────────────────────────────────────────────────────────
 const NIGHT_WORK = [
   { vessel:"HMM GARAM",        terminal:"P 4",  start:"6 PM", strad:null, hust:39, sv:1,  pd:1  },
   { vessel:"EVER SIGMA",       terminal:"PCT",  start:"6 PM", strad:12,   hust:null,sv:3, pd:3  },
@@ -61,25 +130,12 @@ const NIGHT_HOUSE = [
   { location:"P-4 YARD/GATE", strad:3,    note:null,        start:"6 PM"   },
   { location:"WUT YARD",      strad:null, note:"6 R/STACK", start:"5/6 PM" },
 ];
-
-// ─── LIVE DAY BOARD 6/5/26 ───────────────────────────────────────────────────
 const DAY_WORK = [
   { vessel:"HMM GARAM",        terminal:"P 4",  start:"8 AM", strad:null, hust:27, pd:1   },
   { vessel:"EVER SIGMA",       terminal:"PCT",  start:"8 AM", strad:null, hust:6,  pd:null },
   { vessel:"CARL SCHUTTE",     terminal:"WUT",  start:"8 AM", strad:null, hust:18, pd:3   },
   { vessel:"MATSON ANCHORAGE", terminal:"SSAT", start:"8 AM", strad:null, hust:15, pd:3   },
   { vessel:"RJ PFEIFFER",      terminal:"SSAT", start:"8 AM", strad:null, hust:15, pd:3   },
-];
-
-// ─── VESSELS ──────────────────────────────────────────────────────────────────
-const VESSELS = [
-  { name:"Gaia Leader",     terminal:"Blair",     cargo:"Car Carrier", eta:"Jun 4", status:"departed" },
-  { name:"LAKE SAINT ANNE", terminal:"Blair",     cargo:"Car Carrier", eta:"Jun 5", status:"in-port"  },
-  { name:"Titania",         terminal:"Blair EB1", cargo:"Car Carrier", eta:"Jun 5", status:"in-port"  },
-  { name:"GLOVIS TRUST",    terminal:"Blair",     cargo:"Car Carrier", eta:"Jun 7", status:"upcoming" },
-  { name:"RCC Tianjin",     terminal:"Blair EB1", cargo:"Car Carrier", eta:"Jun 7", status:"upcoming" },
-  { name:"Venus Spirit",    terminal:"Blair EB1", cargo:"Car Carrier", eta:"Jun 7", status:"upcoming" },
-  { name:"Patara",          terminal:"Blair",     cargo:"Car Carrier", eta:"Jun 8", status:"upcoming" },
 ];
 
 // ─── DAYS ─────────────────────────────────────────────────────────────────────
@@ -89,7 +145,7 @@ const DAYS_FULL = ["Saturday","Sunday","Monday","Tuesday","Wednesday","Thursday"
 const JS_TO_IDX = [1,2,3,4,5,6,0];
 function getTodayIdx() { return JS_TO_IDX[new Date().getDay()]; }
 
-// ─── CSV / FETCH ──────────────────────────────────────────────────────────────
+// ─── CSV / SPIN FETCH ─────────────────────────────────────────────────────────
 function parseSpinCSV(csv) {
   const rows = csv.trim().split("\n").map(r =>
     r.split(",").map(c => c.replace(/^"|"$/g,"").trim())
@@ -97,14 +153,10 @@ function parseSpinCSV(csv) {
   return rows
     .filter(r => r[0] && !isNaN(r[0]) && r[0] !== "")
     .map(r => ({
-      reg: r[0].trim(),
-      cls: r[1]?.trim() || "A",
-      sat: parseInt(r[2]) || null,
-      sun: parseInt(r[3]) || null,
-      mon: parseInt(r[4]) || null,
-      tue: parseInt(r[5]) || null,
-      wed: parseInt(r[6]) || null,
-      thu: parseInt(r[7]) || null,
+      reg: r[0].trim(), cls: r[1]?.trim() || "A",
+      sat: parseInt(r[2]) || null, sun: parseInt(r[3]) || null,
+      mon: parseInt(r[4]) || null, tue: parseInt(r[5]) || null,
+      wed: parseInt(r[6]) || null, thu: parseInt(r[7]) || null,
       fri: parseInt(r[8]) || null,
     }));
 }
@@ -142,7 +194,6 @@ function ILWUMark({ size = 34 }) {
     <svg width={size} height={size} viewBox="0 0 34 34" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
       <circle cx="17" cy="17" r="17" fill={C.yellow}/>
       <circle cx="17" cy="17" r="14" fill={C.navy}/>
-      {/* globe meridians */}
       <ellipse cx="17" cy="17" rx="5.5" ry="14" stroke="rgba(255,255,255,0.25)" strokeWidth="0.8" fill="none"/>
       <line x1="3" y1="17" x2="31" y2="17" stroke="rgba(255,255,255,0.25)" strokeWidth="0.8"/>
       <ellipse cx="17" cy="17" rx="14" ry="5.5" stroke="rgba(255,255,255,0.25)" strokeWidth="0.8" fill="none"/>
@@ -154,11 +205,11 @@ function ILWUMark({ size = 34 }) {
 
 // ─── ONBOARDING ──────────────────────────────────────────────────────────────
 function Onboarding({ onSave }) {
-  const [val, setVal]             = useState("");
-  const [status, setStatus]       = useState(null); // null | searching | found | notfound
-  const [found, setFound]         = useState(null);
+  const [val, setVal]               = useState("");
+  const [status, setStatus]         = useState(null);
+  const [found, setFound]           = useState(null);
   const [spinsCache, setSpinsCache] = useState(null);
-  const debounceRef               = useRef(null);
+  const debounceRef                 = useRef(null);
 
   function lookup(reg) {
     setFound(null);
@@ -200,10 +251,8 @@ function Onboarding({ onSave }) {
   return (
     <div style={{ minHeight:"100vh", background:C.cream, display:"flex", alignItems:"center", justifyContent:"center", padding:20, fontFamily:"'DM Sans',sans-serif" }}>
       <div style={{ background:C.white, borderRadius:20, width:"100%", maxWidth:400, overflow:"hidden", boxShadow:"0 4px 24px rgba(0,0,0,0.10)" }}>
-        {/* Top accent bar */}
         <div style={{ height:6, background:C.navy }} />
         <div style={{ padding:"32px 28px 36px" }}>
-          {/* Logo lockup */}
           <div style={{ display:"flex", alignItems:"center", gap:12, marginBottom:32 }}>
             <ILWUMark size={40} />
             <div>
@@ -211,10 +260,8 @@ function Onboarding({ onSave }) {
               <div style={{ fontFamily:"'Bebas Neue',sans-serif", fontSize:12, color:C.blue, letterSpacing:"3px", lineHeight:1.1 }}>DISPATCH</div>
             </div>
           </div>
-
           <div style={{ fontSize:22, fontWeight:700, color:C.dark, lineHeight:1.25, marginBottom:8 }}>What's your registration number?</div>
           <div style={{ fontSize:15, color:C.muted, marginBottom:28 }}>Enter it once. We'll remember it.</div>
-
           <label style={{ fontSize:12, fontWeight:600, color:"#555", display:"block", marginBottom:8 }}>Registration #</label>
           <input
             type="tel" inputMode="numeric" placeholder="e.g. 230456"
@@ -226,11 +273,9 @@ function Onboarding({ onSave }) {
               borderColor: status==="found" ? C.blue : status==="notfound" ? "#DC2626" : C.border,
               borderRadius:12, padding:"16px", fontSize:26, fontFamily:"'DM Mono',monospace",
               fontWeight:600, color:C.dark, letterSpacing:"4px", outline:"none",
-              textAlign:"center", transition:"border-color 0.2s", marginBottom:12,
-              background:C.white,
+              textAlign:"center", transition:"border-color 0.2s", marginBottom:12, background:C.white,
             }}
           />
-
           <div style={{ minHeight:60 }}>
             {status==="searching" && (
               <div style={{ fontSize:13, color:C.muted, textAlign:"center", padding:"16px 0" }}>Looking up...</div>
@@ -255,18 +300,14 @@ function Onboarding({ onSave }) {
               </div>
             )}
           </div>
-
           <button
             disabled={!active}
             onClick={() => found && onSave({ reg:found.reg, cls:found.cls }, spinsCache)}
             aria-label="Get started"
             style={{
-              width:"100%",
-              background: active ? C.navy : C.border,
-              color: active ? C.yellow : C.muted,
-              borderRadius:12, padding:"17px", fontSize:16,
-              fontFamily:"'Bebas Neue',sans-serif", letterSpacing:"1px",
-              cursor: active ? "pointer" : "default", border:"none", marginTop:16,
+              width:"100%", background: active ? C.navy : C.border, color: active ? C.yellow : C.muted,
+              borderRadius:12, padding:"17px", fontSize:16, fontFamily:"'Bebas Neue',sans-serif",
+              letterSpacing:"1px", cursor: active ? "pointer" : "default", border:"none", marginTop:16,
               transition:"background 0.2s, color 0.2s",
             }}>
             GET STARTED →
@@ -280,42 +321,40 @@ function Onboarding({ onSave }) {
 
 // ─── WEEK CARD ────────────────────────────────────────────────────────────────
 function WeekCard({ sheet, record, todayIdx, isCurrent }) {
-  // Rank days by spin number ascending (lowest = best)
+  // Top-3 for cell highlighting
   const rankedDays = DAYS_KEY
-    .map((dk, i) => ({ day: i, spin: record?.[dk] ?? Infinity }))
+    .map((dk, i) => ({ day:i, spin: record?.[dk] ?? Infinity }))
     .filter(d => d.spin !== Infinity && d.spin !== null)
     .sort((a, b) => a.spin - b.spin)
     .slice(0, 3);
   const rankMap = {};
   rankedDays.forEach((d, i) => { rankMap[d.day] = i; });
-  const bestDay = rankedDays[0]?.day ?? 0;
 
-  // Default to best day, not today
-  const [selDay, setSelDay] = useState(bestDay);
+  // Single best day (all 7 days ranked) — default selection
+  const bestIdx = DAYS_KEY
+    .map((dk, i) => ({ i, spin: record?.[dk] ?? Infinity }))
+    .sort((a, b) => a.spin - b.spin)[0]?.i ?? (isCurrent ? todayIdx : 0);
+
+  const [selDay, setSelDay] = useState(bestIdx);
   const heroSpin = record?.[DAYS_KEY[selDay]] ?? null;
 
-  const isShowingBest  = selDay === bestDay && rankedDays.length > 0;
-  const isShowingToday = isCurrent && selDay === todayIdx;
-  const heroLabel = isShowingBest
-    ? "Best this week"
-    : isShowingToday
-      ? "Today"
-      : DAYS_FULL[selDay];
+  const heroLabel =
+    selDay === bestIdx && isCurrent  ? "BEST THIS WEEK" :
+    selDay === bestIdx && !isCurrent ? "BEST NEXT WEEK" :
+    selDay === todayIdx && isCurrent ? `TODAY · ${DAYS_FULL[selDay].toUpperCase()}` :
+    DAYS_FULL[selDay].toUpperCase();
 
   return (
     <div style={{ background:C.white, borderRadius:18, border:`1.5px solid ${C.border}`, overflow:"hidden", boxShadow:"0 1px 4px rgba(0,0,0,0.05)" }}>
-      {/* Accent bar */}
       <div style={{ height:4, background: isCurrent ? C.navy : C.blue }} />
-
       <div style={{ padding:"12px 18px 0", display:"flex", justifyContent:"space-between", alignItems:"center" }}>
         <span style={{ fontFamily:"'Bebas Neue',sans-serif", fontSize:13, color: isCurrent ? C.navy : C.muted, letterSpacing:"1px" }}>
           {isCurrent ? "This Week" : "Next Week"}
         </span>
         <span style={{ fontSize:11, color:C.muted, fontFamily:"'DM Mono',monospace" }}>{sheet.label}</span>
       </div>
-
       <div style={{ padding:"4px 18px 0" }}>
-        <div style={{ fontSize:11, fontWeight:700, color: isShowingBest ? C.blue : C.muted, textTransform:"uppercase", letterSpacing:"1px", marginBottom:2, minHeight:16 }}>
+        <div style={{ fontSize:11, fontWeight:500, color:C.muted, textTransform:"uppercase", letterSpacing:"1px", marginBottom:2, minHeight:16, fontFamily:"'DM Sans',sans-serif" }}>
           {heroLabel}
         </div>
         <div style={{ fontFamily:"'Bebas Neue',sans-serif", fontSize:84, lineHeight:0.9, color:C.navy, letterSpacing:"-2px" }}>
@@ -328,14 +367,14 @@ function WeekCard({ sheet, record, todayIdx, isCurrent }) {
       <div style={{ display:"grid", gridTemplateColumns:"repeat(7,1fr)", gap:3, padding:"0 10px 14px" }}>
         {DAYS_KEY.map((dk, di) => {
           const spin    = record?.[dk] ?? null;
-          const rank    = rankMap[di] ?? -1;  // 0=best, 1=2nd, 2=3rd, -1=none
+          const rank    = rankMap[di] ?? -1;
           const isToday = isCurrent && di === todayIdx;
           const isTop1  = rank === 0;
           const isTop23 = rank === 1 || rank === 2;
 
-          const bg          = isTop1 ? C.navy : isTop23 ? C.blue : C.cream;
-          const borderColor = isTop1 ? C.yellow : isTop23 ? C.blue : isToday ? C.navy : "transparent";
-          const borderWidth = isTop1 ? "2px" : "1.5px";
+          const bg          = isTop1 ? C.navy   : isTop23 ? C.blue  : C.cream;
+          const borderColor = isTop1 ? C.yellow : isTop23 ? C.blue  : isToday ? C.navy : "transparent";
+          const borderWidth = isTop1 ? "2px"    : "1.5px";
           const dayColor    = isTop1 ? C.yellow : isTop23 ? "rgba(255,255,255,0.7)" : isToday ? C.navy : C.muted;
           const numColor    = isTop1 ? C.yellow : isTop23 ? C.white : isToday ? C.navy : spin ? C.muted : "#ddd";
 
@@ -378,51 +417,20 @@ function WeekCarousel({ sheets, records, todayIdx, activeIdx }) {
   const atEnd   = page === sheets.length - 1;
   return (
     <div style={{ marginBottom:12 }}>
-      <WeekCard
-        sheet={sheets[page]}
-        record={records[sheets[page].id]}
-        todayIdx={todayIdx}
-        isCurrent={page === activeIdx}
-      />
+      <WeekCard sheet={sheets[page]} record={records[sheets[page].id]} todayIdx={todayIdx} isCurrent={page === activeIdx} />
       <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginTop:10, padding:"0 2px" }}>
-        <button
-          onClick={() => setPage(p => Math.max(0, p-1))}
-          aria-label="Previous week"
-          style={{
-            padding:"8px 18px", minHeight:44, borderRadius:20,
-            background: atStart ? C.cream : C.navy,
-            color:      atStart ? C.muted : C.white,
-            fontSize:13, fontWeight:600, border:"none",
-            cursor: atStart ? "default" : "pointer",
-          }}>
+        <button onClick={() => setPage(p => Math.max(0, p-1))} aria-label="Previous week"
+          style={{ padding:"8px 18px", minHeight:44, borderRadius:20, background: atStart ? C.cream : C.navy, color: atStart ? C.muted : C.white, fontSize:13, fontWeight:600, border:"none", cursor: atStart ? "default" : "pointer" }}>
           ← This Week
         </button>
-
         <div style={{ display:"flex", gap:6 }}>
           {sheets.map((_, i) => (
-            <button
-              key={i}
-              onClick={() => setPage(i)}
-              aria-label={`Week ${i+1}`}
-              style={{
-                width: i===page ? 20 : 7, height:7, borderRadius:4,
-                background: i===page ? C.navy : C.border,
-                border:"none", cursor:"pointer", transition:"all 0.2s", padding:0,
-              }}
-            />
+            <button key={i} onClick={() => setPage(i)} aria-label={`Week ${i+1}`}
+              style={{ width: i===page ? 20 : 7, height:7, borderRadius:4, background: i===page ? C.navy : C.border, border:"none", cursor:"pointer", transition:"all 0.2s", padding:0 }} />
           ))}
         </div>
-
-        <button
-          onClick={() => setPage(p => Math.min(sheets.length-1, p+1))}
-          aria-label="Next week"
-          style={{
-            padding:"8px 18px", minHeight:44, borderRadius:20,
-            background: atEnd ? C.cream : C.navy,
-            color:      atEnd ? C.muted : C.white,
-            fontSize:13, fontWeight:600, border:"none",
-            cursor: atEnd ? "default" : "pointer",
-          }}>
+        <button onClick={() => setPage(p => Math.min(sheets.length-1, p+1))} aria-label="Next week"
+          style={{ padding:"8px 18px", minHeight:44, borderRadius:20, background: atEnd ? C.cream : C.navy, color: atEnd ? C.muted : C.white, fontSize:13, fontWeight:600, border:"none", cursor: atEnd ? "default" : "pointer" }}>
           Next Week →
         </button>
       </div>
@@ -432,18 +440,12 @@ function WeekCarousel({ sheets, records, todayIdx, activeIdx }) {
 
 // ─── WORK BOARD ───────────────────────────────────────────────────────────────
 function WorkBoard({ jobs, houseJobs, date, shift, liveUrl }) {
-  const totalStrad = [
-    ...jobs.map(j => j.strad||0),
-    ...houseJobs.map(j => j.strad||0),
-  ].reduce((a,b) => a+b, 0);
-
+  const totalStrad = [...jobs.map(j => j.strad||0), ...houseJobs.map(j => j.strad||0)].reduce((a,b) => a+b, 0);
   return (
     <div style={{ marginBottom:12 }}>
       <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:8 }}>
         <div style={{ display:"flex", alignItems:"center", gap:8 }}>
-          <div style={{ fontFamily:"'Bebas Neue',sans-serif", fontSize:13, color:C.navy, letterSpacing:"1px" }}>
-            {shift} Work
-          </div>
+          <div style={{ fontFamily:"'Bebas Neue',sans-serif", fontSize:13, color:C.navy, letterSpacing:"1px" }}>{shift} Work</div>
           <div style={{ fontSize:10, color:C.muted, fontFamily:"'DM Mono',monospace" }}>{date}</div>
           {totalStrad > 0 && (
             <div style={{ background:C.navy, borderRadius:6, padding:"2px 8px", display:"flex", alignItems:"center", gap:4 }}>
@@ -452,48 +454,25 @@ function WorkBoard({ jobs, houseJobs, date, shift, liveUrl }) {
             </div>
           )}
         </div>
-        <a href={liveUrl} target="_blank" rel="noopener noreferrer"
-          style={{ fontSize:12, color:C.blue, fontWeight:600 }}>Live ↗</a>
+        <a href={liveUrl} target="_blank" rel="noopener noreferrer" style={{ fontSize:12, color:C.blue, fontWeight:600 }}>Live ↗</a>
       </div>
-
       <div style={{ background:C.white, borderRadius:14, border:`1.5px solid ${C.border}`, borderLeft:`3px solid ${C.navy}`, overflow:"hidden" }}>
         {jobs.map((job, i) => (
-          <div key={job.vessel} style={{
-            padding:"11px 16px",
-            borderBottom: i < jobs.length-1 || houseJobs.length > 0 ? `1px solid ${C.cream}` : "none",
-            background: C.white,
-          }}>
+          <div key={job.vessel} style={{ padding:"11px 16px", borderBottom: i < jobs.length-1 || houseJobs.length > 0 ? `1px solid ${C.cream}` : "none", background: C.white }}>
             <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start" }}>
               <div>
                 <div style={{ fontWeight:600, fontSize:13, color:C.dark }}>{job.vessel}</div>
                 <div style={{ fontSize:11, color:C.muted, marginTop:1 }}>{job.terminal} · {job.start}</div>
               </div>
               <div style={{ display:"flex", gap:5, flexWrap:"wrap", justifyContent:"flex-end" }}>
-                {job.strad && (
-                  <span style={{ fontSize:11, background:C.navy, color:C.white, borderRadius:5, padding:"3px 8px", fontWeight:700 }}>
-                    Strad {job.strad}
-                  </span>
-                )}
-                {job.hust && (
-                  <span style={{ fontSize:11, background:C.cream, color:C.navy, borderRadius:5, padding:"3px 8px", fontWeight:600 }}>
-                    Hust {job.hust}
-                  </span>
-                )}
-                {job.pd && (
-                  <span style={{ fontSize:11, background:C.cream, color:C.navy, borderRadius:5, padding:"3px 8px", fontWeight:600 }}>
-                    PD {job.pd}
-                  </span>
-                )}
-                {job.sv && (
-                  <span style={{ fontSize:11, background:C.cream, color:C.navy, borderRadius:5, padding:"3px 8px", fontWeight:600 }}>
-                    SV {job.sv}
-                  </span>
-                )}
+                {job.strad && <span style={{ fontSize:11, background:C.navy,  color:C.white, borderRadius:5, padding:"3px 8px", fontWeight:700 }}>Strad {job.strad}</span>}
+                {job.hust  && <span style={{ fontSize:11, background:C.cream, color:C.navy,  borderRadius:5, padding:"3px 8px", fontWeight:600 }}>Hust {job.hust}</span>}
+                {job.pd    && <span style={{ fontSize:11, background:C.cream, color:C.navy,  borderRadius:5, padding:"3px 8px", fontWeight:600 }}>PD {job.pd}</span>}
+                {job.sv    && <span style={{ fontSize:11, background:C.cream, color:C.navy,  borderRadius:5, padding:"3px 8px", fontWeight:600 }}>SV {job.sv}</span>}
               </div>
             </div>
           </div>
         ))}
-
         {houseJobs.map((job, i) => (
           <div key={job.location} style={{ padding:"11px 16px", borderBottom:i<houseJobs.length-1?`1px solid ${C.cream}`:"none", background:C.cream }}>
             <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center" }}>
@@ -502,16 +481,8 @@ function WorkBoard({ jobs, houseJobs, date, shift, liveUrl }) {
                 <div style={{ fontSize:11, color:C.muted, marginTop:1 }}>House · {job.start}</div>
               </div>
               <div style={{ display:"flex", gap:5 }}>
-                {job.strad && (
-                  <span style={{ fontSize:11, background:C.navy, color:C.white, borderRadius:5, padding:"3px 8px", fontWeight:700 }}>
-                    Strad {job.strad}
-                  </span>
-                )}
-                {job.note && (
-                  <span style={{ fontSize:11, background:C.cream, color:C.navy, borderRadius:5, padding:"3px 8px", fontWeight:600 }}>
-                    {job.note}
-                  </span>
-                )}
+                {job.strad && <span style={{ fontSize:11, background:C.navy,  color:C.white, borderRadius:5, padding:"3px 8px", fontWeight:700 }}>Strad {job.strad}</span>}
+                {job.note  && <span style={{ fontSize:11, background:C.cream, color:C.navy,  borderRadius:5, padding:"3px 8px", fontWeight:600 }}>{job.note}</span>}
               </div>
             </div>
           </div>
@@ -521,21 +492,17 @@ function WorkBoard({ jobs, houseJobs, date, shift, liveUrl }) {
   );
 }
 
-// ─── VESSEL STATUS BADGE ─────────────────────────────────────────────────────
+// ─── VESSEL BADGE ─────────────────────────────────────────────────────────────
 function VesselBadge({ status }) {
   const map = {
-    "in-port":  { bg: C.navy,  color: C.white, border: "none",                    label: "IN PORT"  },
-    "arriving": { bg: C.blue,  color: C.white, border: "none",                    label: "ARRIVING" },
-    "upcoming": { bg: C.cream, color: C.navy,  border: `1px solid ${C.navy}`,     label: "UPCOMING" },
-    "departed": { bg: C.cream, color: C.muted, border: `1px solid transparent`,   label: "DEPARTED" },
+    "in-port":  { bg:C.navy,  color:C.white, border:"none",                  label:"IN PORT"  },
+    "arriving": { bg:C.blue,  color:C.white, border:"none",                  label:"ARRIVING" },
+    "upcoming": { bg:C.cream, color:C.navy,  border:`1px solid ${C.navy}`,   label:"UPCOMING" },
+    "departed": { bg:C.cream, color:C.muted, border:"1px solid transparent", label:"DEPARTED" },
   };
   const s = map[status] || map["upcoming"];
   return (
-    <span style={{
-      display:"inline-block", fontSize:9, fontWeight:700, padding:"3px 9px",
-      borderRadius:20, background:s.bg, color:s.color, border:s.border,
-      fontFamily:"'DM Mono',monospace", letterSpacing:"0.5px",
-    }}>
+    <span style={{ display:"inline-block", fontSize:9, fontWeight:700, padding:"3px 9px", borderRadius:20, background:s.bg, color:s.color, border:s.border, fontFamily:"'DM Mono',monospace", letterSpacing:"0.5px" }}>
       {s.label}
     </span>
   );
@@ -547,6 +514,8 @@ export default function App() {
   const [allSpins, setAllSpins] = useState({});
   const [loading,  setLoading]  = useState(false);
   const [error,    setError]    = useState(null);
+  const [vessels,      setVessels]      = useState([]);
+  const [vesselError,  setVesselError]  = useState(false);
   const todayIdx  = getTodayIdx();
   const activeIdx = getActiveSheetIdx();
 
@@ -554,7 +523,6 @@ export default function App() {
     try { const s = localStorage.getItem("ilwu23_member"); if(s) setMember(JSON.parse(s)); } catch{}
   }, []);
 
-  // Returning visitors: re-fetch on load
   useEffect(() => {
     if (!member?.reg) return;
     setLoading(true); setError(null);
@@ -562,6 +530,13 @@ export default function App() {
       .then(map => { setAllSpins(map); setLoading(false); })
       .catch(() => { setError("Using cached data."); setLoading(false); });
   }, [member?.reg]);
+
+  useEffect(() => {
+    fetchVessels().then(v => {
+      if (v) setVessels(v);
+      else setVesselError(true);
+    });
+  }, []);
 
   function saveMember(m, spinsFromLookup) {
     localStorage.setItem("ilwu23_member", JSON.stringify(m));
@@ -573,7 +548,6 @@ export default function App() {
     setMember(null);
     setAllSpins({});
   }
-
   function findRecord(sheetId) {
     const live = allSpins[sheetId]?.find(s => s.reg === member?.reg);
     if (live) return live;
@@ -602,7 +576,11 @@ export default function App() {
     ptrStartY.current = null;
     if (h > 40) {
       setRefreshing(true);
-      try { const map = await fetchAllCSVs(); setAllSpins(map); } catch {}
+      try {
+        const [map, v] = await Promise.all([fetchAllCSVs(), fetchVessels()]);
+        setAllSpins(map);
+        if (v) setVessels(v);
+      } catch {}
       setRefreshing(false);
     }
   }
@@ -611,6 +589,11 @@ export default function App() {
 
   const resolvedRecords = {};
   SHEETS.forEach(sh => { resolvedRecords[sh.id] = findRecord(sh.id); });
+
+  // Vessel stats
+  const atBerth  = vessels.filter(v => v.status === "in-port").length;
+  const next72   = vessels.filter(v => v.status === "upcoming" && v.etaDate <= new Date(Date.now() + 3*86400000)).length;
+  const thisWeek = vessels.filter(v => v.etaDate <= new Date(Date.now() + 7*86400000)).length;
 
   return (
     <div
@@ -627,7 +610,7 @@ export default function App() {
         a { text-decoration:none; color:inherit; }
       `}</style>
 
-      {/* Pull-to-refresh indicator */}
+      {/* Pull-to-refresh */}
       <div ref={ptrEl} style={{ height:0, opacity:0, display:"flex", alignItems:"center", justifyContent:"center", overflow:"hidden", transition:"height 0.1s", background:C.cream }}>
         <span style={{ fontSize:13, color:C.navy, fontWeight:600 }}>↓ Release to refresh</span>
       </div>
@@ -637,24 +620,20 @@ export default function App() {
         </div>
       )}
 
-      {/* ── TOP BAR ── */}
+      {/* TOP BAR */}
       <div style={{ background:C.navy, padding:"12px 18px", display:"flex", justifyContent:"space-between", alignItems:"center", position:"sticky", top:0, zIndex:10 }}>
         <div style={{ display:"flex", alignItems:"center", gap:11 }}>
           <ILWUMark size={36} />
           <div>
             <div style={{ fontFamily:"'Bebas Neue',sans-serif", fontSize:14, color:C.white, letterSpacing:"2px", lineHeight:1.15 }}>ILWU LOCAL 23</div>
             <div style={{ fontFamily:"'Bebas Neue',sans-serif", fontSize:12, color:C.yellow, letterSpacing:"3px", lineHeight:1.15 }}>DISPATCH</div>
-            <div style={{ fontFamily:"'DM Mono',monospace", fontSize:11, color:C.blue, marginTop:2 }}>
-              #{member.reg} · {member.cls} CLASS
-            </div>
+            <div style={{ fontFamily:"'DM Mono',monospace", fontSize:11, color:C.blue, marginTop:2 }}>#{member.reg} · {member.cls} CLASS</div>
           </div>
         </div>
         <div style={{ display:"flex", alignItems:"center", gap:8 }}>
           {loading && <span style={{ fontSize:13, color:"rgba(255,255,255,0.5)" }}>↻</span>}
           {error   && <span style={{ fontSize:13, color:C.yellow }}>⚠</span>}
-          <button
-            onClick={resetMember}
-            aria-label="Change registration number"
+          <button onClick={resetMember} aria-label="Change registration number"
             style={{ background:C.blue, borderRadius:20, padding:"8px 16px", minHeight:36, fontSize:12, fontWeight:700, color:C.white, border:"none", letterSpacing:"0.3px" }}>
             Change #
           </button>
@@ -666,56 +645,72 @@ export default function App() {
         <WeekCarousel sheets={SHEETS} records={resolvedRecords} todayIdx={todayIdx} activeIdx={activeIdx} />
 
         {/* NIGHT BOARD */}
-        <WorkBoard
-          jobs={NIGHT_WORK}
-          houseJobs={NIGHT_HOUSE}
-          date="6/4/26"
-          shift="Night"
-          liveUrl="http://ilwu23.com/?screen=1"
-        />
+        <WorkBoard jobs={NIGHT_WORK} houseJobs={NIGHT_HOUSE} date="6/4/26" shift="Night" liveUrl="http://ilwu23.com/?screen=1" />
 
         {/* DAY BOARD */}
-        <WorkBoard
-          jobs={DAY_WORK}
-          houseJobs={[]}
-          date="6/5/26"
-          shift="Day"
-          liveUrl="http://ilwu23.com/?screen=2"
-        />
+        <WorkBoard jobs={DAY_WORK} houseJobs={[]} date="6/5/26" shift="Day" liveUrl="http://ilwu23.com/?screen=2" />
 
         {/* VESSELS */}
         <div style={{ marginBottom:12 }}>
           <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:8 }}>
-            <div style={{ fontFamily:"'Bebas Neue',sans-serif", fontSize:13, color:C.navy, letterSpacing:"1px" }}>
-              Vessels · Tacoma
+            <div style={{ fontFamily:"'Bebas Neue',sans-serif", fontSize:13, color:C.navy, letterSpacing:"1px" }}>Vessels · Tacoma</div>
+            <a href="https://www.nwseaportalliance.com/cargo-operations/vessel-schedules-and-calendar" target="_blank" rel="noopener noreferrer"
+              style={{ fontSize:12, color:C.blue, fontWeight:600 }}>Full schedule ↗</a>
+          </div>
+
+          {/* Stat tiles */}
+          {vessels.length > 0 && (
+            <div style={{ display:"grid", gridTemplateColumns:"repeat(3,1fr)", gap:8, marginBottom:10 }}>
+              {[
+                { label:"AT BERTH",    value: atBerth  },
+                { label:"NEXT 72 HRS", value: next72   },
+                { label:"THIS WEEK",   value: thisWeek },
+              ].map(({ label, value }) => (
+                <div key={label} style={{ background:C.navy, borderRadius:10, padding:"12px 8px", textAlign:"center" }}>
+                  <div style={{ fontFamily:"'Bebas Neue',sans-serif", fontSize:36, color:C.yellow, lineHeight:1 }}>{value}</div>
+                  <div style={{ fontSize:9, color:C.white, fontWeight:600, textTransform:"uppercase", letterSpacing:"0.5px", marginTop:3, fontFamily:"'DM Sans',sans-serif" }}>{label}</div>
+                </div>
+              ))}
             </div>
-            <a
-              href="https://www.nwseaportalliance.com/cargo-operations/vessel-schedules-and-calendar"
-              target="_blank" rel="noopener noreferrer"
-              style={{ fontSize:12, color:C.blue, fontWeight:600 }}>
-              Full schedule ↗
-            </a>
-          </div>
-          <div style={{ background:C.white, borderRadius:14, border:`1.5px solid ${C.border}`, overflow:"hidden" }}>
-            {VESSELS.map((v, i) => (
-              <div key={v.name} style={{ display:"flex", alignItems:"center", padding:"12px 16px", borderBottom:i<VESSELS.length-1?`1px solid ${C.cream}`:"none" }}>
-                <div style={{ flex:1 }}>
-                  <div style={{ fontWeight:600, fontSize:14, color: v.status==="departed" ? C.muted : C.dark }}>
-                    {v.name}
+          )}
+
+          {/* Vessel list */}
+          {vesselError ? (
+            <div style={{ background:C.white, borderRadius:14, border:`1.5px solid ${C.border}`, padding:"16px", fontSize:13, color:C.muted, textAlign:"center" }}>
+              Vessel schedule unavailable ·{" "}
+              <a href="https://www.nwseaportalliance.com/cargo-operations/vessel-schedules-and-calendar" target="_blank" rel="noopener noreferrer" style={{ color:C.blue, fontWeight:600 }}>Full schedule ↗</a>
+            </div>
+          ) : vessels.length === 0 ? (
+            <div style={{ background:C.white, borderRadius:14, border:`1.5px solid ${C.border}`, padding:"16px", fontSize:13, color:C.muted, textAlign:"center" }}>
+              Loading vessel schedule...
+            </div>
+          ) : (
+            <div style={{ background:C.white, borderRadius:14, border:`1.5px solid ${C.border}`, overflow:"hidden" }}>
+              {vessels.map((v, i) => (
+                <div key={`${v.name}-${i}`} style={{ display:"flex", alignItems:"center", padding:"12px 16px", borderBottom:i<vessels.length-1?`1px solid ${C.cream}`:"none" }}>
+                  <div style={{ flex:1 }}>
+                    <div style={{ fontWeight:600, fontSize:14, color: v.status==="departed" ? C.muted : C.dark }}>{v.name}</div>
+                    <div style={{ fontSize:12, color:C.muted, marginTop:1 }}>{v.terminal} · {v.cargo}</div>
                   </div>
-                  <div style={{ fontSize:12, color:C.muted, marginTop:1 }}>{v.terminal} · {v.cargo}</div>
-                </div>
-                <div style={{ textAlign:"right" }}>
-                  <div style={{ fontSize:11, color:C.muted, fontFamily:"'DM Mono',monospace", marginBottom:4 }}>
-                    ETA {v.eta}
+                  <div style={{ textAlign:"right" }}>
+                    <div style={{ fontSize:11, color:C.muted, fontFamily:"'DM Mono',monospace", marginBottom:4 }}>ETA {v.eta}</div>
+                    <VesselBadge status={v.status} />
                   </div>
-                  <VesselBadge status={v.status} />
                 </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
         </div>
 
+      </div>
+
+      {/* DISCLAIMER */}
+      <div style={{
+        textAlign:"center", fontSize:11, color:C.muted,
+        fontFamily:"'DM Sans',sans-serif", padding:"16px 20px 8px",
+        paddingBottom:"calc(8px + env(safe-area-inset-bottom))",
+      }}>
+        This is an independent project. Not affiliated with ILWU or Local 23.
       </div>
     </div>
   );
