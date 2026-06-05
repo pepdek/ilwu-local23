@@ -121,24 +121,47 @@ async function fetchVessels() {
     .slice(0, 10);
 }
 
-// ─── WORK BOARD DATA ──────────────────────────────────────────────────────────
-const NIGHT_WORK = [
-  { vessel:"HMM GARAM",        terminal:"P 4",  start:"6 PM", strad:null, hust:39, sv:1,  pd:1  },
-  { vessel:"EVER SIGMA",       terminal:"PCT",  start:"6 PM", strad:12,   hust:null,sv:3, pd:3  },
-  { vessel:"CARL SCHUTTE",     terminal:"WUT",  start:"6 PM", strad:null, hust:18, sv:3,  pd:3  },
-  { vessel:"MATSON ANCHORAGE", terminal:"SSAT", start:"3 AM", strad:null, hust:15, sv:3,  pd:3  },
-];
-const NIGHT_HOUSE = [
-  { location:"P-4 YARD/GATE", strad:3,    note:null,        start:"6 PM"   },
-  { location:"WUT YARD",      strad:null, note:"6 R/STACK", start:"5/6 PM" },
-];
-const DAY_WORK = [
-  { vessel:"HMM GARAM",        terminal:"P 4",  start:"8 AM", strad:null, hust:27, pd:1   },
-  { vessel:"EVER SIGMA",       terminal:"PCT",  start:"8 AM", strad:null, hust:6,  pd:null },
-  { vessel:"CARL SCHUTTE",     terminal:"WUT",  start:"8 AM", strad:null, hust:18, pd:3   },
-  { vessel:"MATSON ANCHORAGE", terminal:"SSAT", start:"8 AM", strad:null, hust:15, pd:3   },
-  { vessel:"RJ PFEIFFER",      terminal:"SSAT", start:"8 AM", strad:null, hust:15, pd:3   },
-];
+// ─── DISPATCH BOARD FETCH ────────────────────────────────────────────────────
+// Parses the live ilwu23.com dispatch board HTML into a structured object.
+// Each row has 12 columns: VESSEL, TERMINAL, UNITS, CRANES, X MAN, SK X-MEN,
+// PD, LASHER, BUS, (empty), (empty), START TIME.
+function parseDispatchHTML(html) {
+  const dateMatch  = html.match(/<h1><a[^>]*>([\d/]+)<\/a><\/h1>/);
+  const shiftMatch = html.match(/<h1><a[^>]+>((?:NIGHT|DAY)\s+WORK)<\/a><\/h1>/i);
+  const date  = dateMatch?.[1]  ?? "";
+  const shift = shiftMatch?.[1] ?? "";
+
+  const cellRegex = /<td><a[^>]+>([\s\S]*?)<\/a><\/td>/g;
+  const cells = [];
+  let m;
+  while ((m = cellRegex.exec(html)) !== null) {
+    const v = m[1].trim();
+    cells.push(v === "&nbsp;" ? "" : v);
+  }
+
+  const jobs = [];
+  for (let i = 0; i + 12 <= cells.length; i += 12) {
+    const row = cells.slice(i, i + 12);
+    if (!row[0]) continue;
+    jobs.push({
+      vessel:   row[0],
+      terminal: row[1],
+      start:    row[11],
+      details:  row.slice(2, 11).filter(c => c),
+    });
+  }
+  return { date, shift, jobs };
+}
+
+async function fetchDispatchBoard(screen) {
+  try {
+    const res = await fetch(`/.netlify/functions/dispatch?screen=${screen}`);
+    if (!res.ok) throw new Error("failed");
+    return parseDispatchHTML(await res.text());
+  } catch {
+    return null;
+  }
+}
 
 // ─── DAYS ─────────────────────────────────────────────────────────────────────
 const DAYS_KEY  = ["sat","sun","mon","tue","wed","thu","fri"];
@@ -479,51 +502,64 @@ function WeekCarousel({ sheets, records, todayIdx, activeIdx }) {
 }
 
 // ─── WORK BOARD ───────────────────────────────────────────────────────────────
-function WorkBoard({ jobs, houseJobs, date, shift, liveUrl }) {
-  const totalStrad = [...jobs.map(j => j.strad||0), ...houseJobs.map(j => j.strad||0)].reduce((a,b) => a+b, 0);
+function WorkBoard({ board, liveUrl }) {
+  const isNight = board?.shift?.toUpperCase().includes("NIGHT");
+  const icon    = isNight ? "🌙" : "☀️";
+  const accentColor = isNight ? C.navy : C.blue;
+
   return (
-    <div style={{ marginBottom:12 }}>
-      <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:8 }}>
-        <div style={{ display:"flex", alignItems:"center", gap:8 }}>
-          <div style={{ fontFamily:"'Bebas Neue',sans-serif", fontSize:13, color:C.navy, letterSpacing:"1px" }}>{shift} Work</div>
-          <div style={{ fontSize:10, color:C.muted, fontFamily:"'DM Mono',monospace" }}>{date}</div>
-          {totalStrad > 0 && (
-            <div style={{ background:C.navy, borderRadius:6, padding:"2px 8px", display:"flex", alignItems:"center", gap:4 }}>
-              <span style={{ fontFamily:"'Bebas Neue',sans-serif", fontSize:16, color:C.white, lineHeight:1 }}>{totalStrad}</span>
-              <span style={{ fontSize:9, fontWeight:700, color:C.white, textTransform:"uppercase", letterSpacing:"0.5px" }}>Strad</span>
+    <div style={{ marginBottom:16 }}>
+      {/* ── Header ── */}
+      <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:10 }}>
+        <div style={{ display:"flex", alignItems:"center", gap:10 }}>
+          <span style={{ fontSize:24, lineHeight:1 }} role="img" aria-label={isNight ? "Night" : "Day"}>
+            {board ? icon : "⏳"}
+          </span>
+          <div>
+            <div style={{ fontFamily:"'Bebas Neue',sans-serif", fontSize:22, color:C.navy, letterSpacing:"2px", lineHeight:1 }}>
+              {board ? board.shift : (isNight ? "NIGHT WORK" : "DAY WORK")}
             </div>
-          )}
+            <div style={{ display:"flex", alignItems:"center", gap:5, marginTop:3 }}>
+              {board?.date && (
+                <span style={{ fontSize:11, color:C.muted, fontFamily:"'DM Mono',monospace" }}>{board.date}</span>
+              )}
+              <span style={{ width:7, height:7, borderRadius:"50%", background:"#22c55e", display:"inline-block" }} />
+              <span style={{ fontSize:10, color:"#22c55e", fontWeight:700, letterSpacing:"0.5px", fontFamily:"'DM Sans',sans-serif" }}>LIVE</span>
+            </div>
+          </div>
         </div>
-        <a href={liveUrl} target="_blank" rel="noopener noreferrer" style={{ fontSize:12, color:C.blue, fontWeight:600 }}>Live ↗</a>
+        <a href={liveUrl} target="_blank" rel="noopener noreferrer"
+          style={{ fontSize:12, color:C.blue, fontWeight:600, marginTop:4 }}>
+          Full board ↗
+        </a>
       </div>
-      <div style={{ background:C.white, borderRadius:14, border:`1.5px solid ${C.border}`, borderLeft:`3px solid ${C.navy}`, overflow:"hidden" }}>
-        {jobs.map((job, i) => (
-          <div key={job.vessel} style={{ padding:"11px 16px", borderBottom: i < jobs.length-1 || houseJobs.length > 0 ? `1px solid ${C.cream}` : "none", background: C.white }}>
-            <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start" }}>
-              <div>
+
+      {/* ── Job list ── */}
+      <div style={{ background:C.white, borderRadius:14, border:`1.5px solid ${C.border}`, borderLeft:`3px solid ${accentColor}`, overflow:"hidden" }}>
+        {!board ? (
+          <div style={{ padding:"18px 16px", textAlign:"center", color:C.muted, fontSize:13 }}>
+            Loading dispatch board…
+          </div>
+        ) : board.jobs.length === 0 ? (
+          <div style={{ padding:"18px 16px", textAlign:"center", color:C.muted, fontSize:13 }}>
+            No jobs posted yet
+          </div>
+        ) : board.jobs.map((job, i) => (
+          <div key={i} style={{ padding:"11px 16px", borderBottom:i < board.jobs.length-1 ? `1px solid ${C.cream}` : "none" }}>
+            <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", gap:8 }}>
+              <div style={{ minWidth:0 }}>
                 <div style={{ fontWeight:600, fontSize:13, color:C.dark }}>{job.vessel}</div>
                 <div style={{ fontSize:11, color:C.muted, marginTop:1 }}>{job.terminal} · {job.start}</div>
               </div>
-              <div style={{ display:"flex", gap:5, flexWrap:"wrap", justifyContent:"flex-end" }}>
-                {job.strad && <span style={{ fontSize:11, background:C.navy,  color:C.white, borderRadius:5, padding:"3px 8px", fontWeight:700 }}>Strad {job.strad}</span>}
-                {job.hust  && <span style={{ fontSize:11, background:C.cream, color:C.navy,  borderRadius:5, padding:"3px 8px", fontWeight:600 }}>Hust {job.hust}</span>}
-                {job.pd    && <span style={{ fontSize:11, background:C.cream, color:C.navy,  borderRadius:5, padding:"3px 8px", fontWeight:600 }}>PD {job.pd}</span>}
-                {job.sv    && <span style={{ fontSize:11, background:C.cream, color:C.navy,  borderRadius:5, padding:"3px 8px", fontWeight:600 }}>SV {job.sv}</span>}
-              </div>
-            </div>
-          </div>
-        ))}
-        {houseJobs.map((job, i) => (
-          <div key={job.location} style={{ padding:"11px 16px", borderBottom:i<houseJobs.length-1?`1px solid ${C.cream}`:"none", background:C.cream }}>
-            <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center" }}>
-              <div>
-                <div style={{ fontSize:12, fontWeight:600, color:C.dark }}>{job.location}</div>
-                <div style={{ fontSize:11, color:C.muted, marginTop:1 }}>House · {job.start}</div>
-              </div>
-              <div style={{ display:"flex", gap:5 }}>
-                {job.strad && <span style={{ fontSize:11, background:C.navy,  color:C.white, borderRadius:5, padding:"3px 8px", fontWeight:700 }}>Strad {job.strad}</span>}
-                {job.note  && <span style={{ fontSize:11, background:C.cream, color:C.navy,  borderRadius:5, padding:"3px 8px", fontWeight:600 }}>{job.note}</span>}
-              </div>
+              {job.details.length > 0 && (
+                <div style={{ display:"flex", gap:4, flexWrap:"wrap", justifyContent:"flex-end", flexShrink:0, maxWidth:"55%" }}>
+                  {job.details.slice(0, 3).map((d, di) => (
+                    <span key={di} style={{ fontSize:10, background:C.cream, color:C.navy, borderRadius:5, padding:"3px 7px", fontWeight:600, whiteSpace:"nowrap" }}>
+                      {d}
+                    </span>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
         ))}
@@ -554,8 +590,10 @@ export default function App() {
   const [allSpins, setAllSpins] = useState({});
   const [loading,  setLoading]  = useState(false);
   const [error,    setError]    = useState(null);
-  const [vessels,      setVessels]      = useState([]);
-  const [vesselError,  setVesselError]  = useState(false);
+  const [vessels,     setVessels]     = useState([]);
+  const [vesselError, setVesselError] = useState(false);
+  const [nightBoard,  setNightBoard]  = useState(null);
+  const [dayBoard,    setDayBoard]    = useState(null);
   const todayIdx  = getTodayIdx();
   const activeIdx = getActiveSheetIdx();
 
@@ -576,6 +614,21 @@ export default function App() {
       if (v) setVessels(v);
       else setVesselError(true);
     });
+  }, []);
+
+  // Live dispatch boards — fetch on mount, auto-refresh every 60 s
+  useEffect(() => {
+    async function loadBoards() {
+      const [night, day] = await Promise.all([
+        fetchDispatchBoard("1"),
+        fetchDispatchBoard("2"),
+      ]);
+      if (night) setNightBoard(night);
+      if (day)   setDayBoard(day);
+    }
+    loadBoards();
+    const interval = setInterval(loadBoards, 60000);
+    return () => clearInterval(interval);
   }, []);
 
   function saveMember(m, spinsFromLookup) {
@@ -617,9 +670,16 @@ export default function App() {
     if (h > 40) {
       setRefreshing(true);
       try {
-        const [map, v] = await Promise.all([fetchAllCSVs(), fetchVessels()]);
+        const [map, v, night, day] = await Promise.all([
+          fetchAllCSVs(),
+          fetchVessels(),
+          fetchDispatchBoard("1"),
+          fetchDispatchBoard("2"),
+        ]);
         setAllSpins(map);
-        if (v) setVessels(v);
+        if (v)     setVessels(v);
+        if (night) setNightBoard(night);
+        if (day)   setDayBoard(day);
       } catch {}
       setRefreshing(false);
     }
@@ -684,11 +744,11 @@ export default function App() {
 
         <WeekCarousel sheets={SHEETS} records={resolvedRecords} todayIdx={todayIdx} activeIdx={activeIdx} />
 
-        {/* NIGHT BOARD */}
-        <WorkBoard jobs={NIGHT_WORK} houseJobs={NIGHT_HOUSE} date="6/4/26" shift="Night" liveUrl="http://ilwu23.com/?screen=1" />
+        {/* NIGHT BOARD — live from ilwu23.com, refreshes every 60s */}
+        <WorkBoard board={nightBoard} liveUrl="http://ilwu23.com/?screen=1" />
 
-        {/* DAY BOARD */}
-        <WorkBoard jobs={DAY_WORK} houseJobs={[]} date="6/5/26" shift="Day" liveUrl="http://ilwu23.com/?screen=2" />
+        {/* DAY BOARD — live from ilwu23.com, refreshes every 60s */}
+        <WorkBoard board={dayBoard} liveUrl="http://ilwu23.com/?screen=2" />
 
         {/* VESSELS */}
         <div style={{ marginBottom:12 }}>
