@@ -78,10 +78,12 @@ async function fetchVessels() {
   const ws   = wb.Sheets[wb.SheetNames[0]];
   const rows = XLSX.utils.sheet_to_json(ws, { header:1, raw:false });
 
-  const hi = rows.findIndex(r => r.some(c => String(c).includes("Vessel Name")));
+  // Use regex so "Vessel  Name" (double space in the XLS) still matches
+  const hi = rows.findIndex(r => r.some(c => /vessel\s+name/i.test(String(c))));
   if (hi === -1) return null;
-  const h   = rows[hi].map(c => String(c).trim());
-  const col = k => h.findIndex(x => x.includes(k));
+  // Array.from fills sparse holes (index 0 is empty in this XLS); normalise spaces
+  const h   = Array.from(rows[hi], c => String(c ?? "").trim().replace(/\s+/g, " "));
+  const col = k => h.findIndex(x => x && x.includes(k));
   const cName = col("Vessel Name"), cTerm = col("Terminal"), cBerth = col("Berth"),
         cCargo = col("Cargo"),      cETA  = col("ETA"),      cETD   = col("ETD"),
         cWay   = col("Water");
