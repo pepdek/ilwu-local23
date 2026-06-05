@@ -13,8 +13,8 @@ const SHEETS = [
   },
 ];
 
-const csvUrl = (id, tab) =>
-  `https://docs.google.com/spreadsheets/d/${id}/export?format=csv&sheet=${encodeURIComponent(tab)}`;
+const memberUrl = (id, tab, reg) =>
+  `https://docs.google.com/spreadsheets/d/${id}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(tab)}&tq=${encodeURIComponent(`select * where A='${reg}'`)}`;
 
 function getActiveSheetIdx() {
   const today = new Date(); today.setHours(0,0,0,0);
@@ -86,19 +86,50 @@ const DAYS_FULL = ["Saturday","Sunday","Monday","Tuesday","Wednesday","Thursday"
 const JS_TO_IDX = [1,2,3,4,5,6,0];
 function getTodayIdx() { return JS_TO_IDX[new Date().getDay()]; }
 
-function parseSpinCSV(csv) {
-  const rows = csv.trim().split("\n").map(r =>
-    r.split(",").map(c => c.replace(/^"|"$/g,"").trim())
+// Parse the single CSV row returned by a gviz filtered query.
+// The response may include a header row — skip any line whose first cell is non-numeric.
+function parseSingleRow(csv) {
+  if (!csv || !csv.trim()) return null;
+  const lines = csv.trim().split("\n");
+  for (const line of lines) {
+    const cols = line.split(",").map(c => c.replace(/^"|"$/g,"").trim());
+    if (cols[0] && !isNaN(cols[0]) && cols[0] !== "") {
+      return {
+        reg: cols[0].trim(),
+        cls: cols[1]?.trim() || "A",
+        sat: parseInt(cols[2]) || null,
+        sun: parseInt(cols[3]) || null,
+        mon: parseInt(cols[4]) || null,
+        tue: parseInt(cols[5]) || null,
+        wed: parseInt(cols[6]) || null,
+        thu: parseInt(cols[7]) || null,
+        fri: parseInt(cols[8]) || null,
+      };
+    }
+  }
+  return null;
+}
+
+// Fetch a single member's record across all tabs for every sheet simultaneously.
+// Returns { [sheetId]: record | null }
+const TABS = ["A", "B", "Casual"];
+async function fetchMemberRecords(reg) {
+  const results = await Promise.all(
+    SHEETS.map(async sh => {
+      const csvs = await Promise.all(
+        TABS.map(tab => fetch(memberUrl(sh.id, tab, reg)).then(r => r.text()).catch(() => ""))
+      );
+      let record = null;
+      for (const csv of csvs) {
+        record = parseSingleRow(csv);
+        if (record) break;
+      }
+      return { id: sh.id, record };
+    })
   );
-  const hi = rows.findIndex(r => r[0].toLowerCase().includes("reg"));
-  if (hi === -1) return [];
-  return rows.slice(hi + 1).filter(r => r[0] && !isNaN(r[0])).map(r => ({
-    reg:r[0].trim(), cls:r[1]?.trim()||"A",
-    sat:parseInt(r[2])||null, sun:parseInt(r[3])||null,
-    mon:parseInt(r[4])||null, tue:parseInt(r[5])||null,
-    wed:parseInt(r[6])||null, thu:parseInt(r[7])||null,
-    fri:parseInt(r[8])||null,
-  }));
+  const map = {};
+  results.forEach(({ id, record }) => { map[id] = record ? [record] : []; });
+  return map;
 }
 
 function spinLabel(n) {
@@ -107,31 +138,39 @@ function spinLabel(n) {
 }
 
 // ─── ONBOARDING ──────────────────────────────────────────────────────────────
-function Onboarding({ onSave, allSpins, loading }) {
+function Onboarding({ onSave }) {
   const [val, setVal]       = useState("");
   const [status, setStatus] = useState(null);
   const [found, setFound]   = useState(null);
   const debounceRef         = useRef(null);
 
-  function lookup(reg) {
+  async function lookup(reg) {
     setFound(null);
     if (reg.length < 4) { setStatus(null); return; }
     setStatus("searching");
     clearTimeout(debounceRef.current);
-    debounceRef.current = setTimeout(() => {
-      let match = null;
-      for (const sheetId of Object.keys(allSpins)) {
-        match = allSpins[sheetId]?.find(s => s.reg === reg.trim());
-        if (match) break;
+    debounceRef.current = setTimeout(async () => {
+      // Check hardcoded fallbacks first (instant)
+      for (const arr of Object.values(FALLBACK)) {
+        const fb = arr.find(s => s.reg === reg.trim());
+        if (fb) { setFound(fb); setStatus("found"); return; }
       }
-      if (!match) {
-        for (const arr of Object.values(FALLBACK)) {
-          const fb = arr.find(s => s.reg === reg.trim());
-          if (fb) { match = fb; break; }
+      // Query both sheets across all tabs simultaneously
+      try {
+        const fetches = SHEETS.flatMap(sh =>
+          TABS.map(tab =>
+            fetch(memberUrl(sh.id, tab, reg.trim())).then(r => r.text()).catch(() => "")
+          )
+        );
+        const csvs = await Promise.all(fetches);
+        for (const csv of csvs) {
+          const record = parseSingleRow(csv);
+          if (record) { setFound(record); setStatus("found"); return; }
         }
+        setStatus("notfound");
+      } catch {
+        setStatus("notfound");
       }
-      if (match) { setFound(match); setStatus("found"); }
-      else setStatus(loading ? "searching" : "notfound");
     }, 400);
   }
 
@@ -150,10 +189,16 @@ function Onboarding({ onSave, allSpins, loading }) {
           <div style={{ fontSize:22, fontWeight:700, color:"#0F0F0F", lineHeight:1.25, marginBottom:8 }}>What's your registration number?</div>
           <div style={{ fontSize:15, color:"#888", marginBottom:28 }}>Enter it once. We'll remember it.</div>
           <label style={{ fontSize:12, fontWeight:600, color:"#555", display:"block", marginBottom:8 }}>Registration #</label>
-          <input type="tel" inputMode="numeric" placeholder="e.g. 230385"
+          <input type="tel" inputMode="numeric" placeholder="e.g. 230456"
             value={val} maxLength={8}
             onChange={e => { setVal(e.target.value); lookup(e.target.value); }}
-            style={{ width:"100%", border:"1.5px solid", borderColor:status==="found"?"#059669":status==="notfound"?"#DC2626":"#E5E3DE", borderRadius:12, padding:"16px", fontSize:26, fontFamily:"'DM Mono',monospace", fontWeight:600, color:"#0F0F0F", letterSpacing:"4px", outline:"none", textAlign:"center", transition:"border-color 0.2s", marginBottom:12 }}
+            style={{
+              width:"100%", boxSizing:"border-box", WebkitAppearance:"none", appearance:"none",
+              border:"1.5px solid", borderColor:status==="found"?"#059669":status==="notfound"?"#DC2626":"#E5E3DE",
+              borderRadius:12, padding:"16px", fontSize:26, fontFamily:"'DM Mono',monospace",
+              fontWeight:600, color:"#0F0F0F", letterSpacing:"4px", outline:"none",
+              textAlign:"center", transition:"border-color 0.2s", marginBottom:12,
+            }}
           />
           <div style={{ minHeight:56 }}>
             {status==="searching" && <div style={{ fontSize:13, color:"#bbb", textAlign:"center", padding:"16px 0" }}>Looking up...</div>}
@@ -216,7 +261,7 @@ function WeekCard({ sheet, record, todayIdx, isCurrent }) {
           {heroSpin ?? "—"}
         </div>
         <div style={{ fontSize:13, fontWeight:600, color:lbl.color, marginTop:6, marginBottom:14 }}>
-          
+
         </div>
       </div>
       <div style={{ display:"grid", gridTemplateColumns:"repeat(7,1fr)", gap:4, padding:"0 10px 14px" }}>
@@ -268,7 +313,7 @@ function WeekCarousel({ sheets, records, todayIdx, activeIdx }) {
         <div style={{ display:"flex", gap:6 }}>
           {sheets.map((_,i) => (
             <button key={i} onClick={() => setPage(i)}
-              style={{ width:i===page?20:7, height:7, borderRadius:4, background:i===page?"#C41230":"#E0DDD8", border:"none", cursor:"pointer", transition:"all 0.2s", padding:0 }} />
+              style={{ width:i===page?20:7, height:7, borderRadius:4, background:i===page?"#1B3A6B":"#E0DDD8", border:"none", cursor:"pointer", transition:"all 0.2s", padding:0 }} />
           ))}
         </div>
         <button onClick={() => setPage(p => Math.min(sheets.length-1,p+1))}
@@ -287,8 +332,6 @@ function WorkBoard({ jobs, houseJobs, date, shift, liveUrl }) {
     ...houseJobs.map(j => j.strad||0),
   ].reduce((a,b) => a+b, 0);
 
-  const prefJobs = jobs.filter(j => j.preferred);
-
   return (
     <div style={{ marginBottom:12 }}>
       <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:10 }}>
@@ -297,7 +340,6 @@ function WorkBoard({ jobs, houseJobs, date, shift, liveUrl }) {
             {shift} Work
           </div>
           <div style={{ fontSize:10, color:"#bbb", fontFamily:"'DM Mono',monospace" }}>{date}</div>
-          {/* Strad count badge — the number he cares about */}
           {totalStrad > 0 && (
             <div style={{ background:"#EFF6FF", border:"1px solid #BFDBFE", borderRadius:6, padding:"2px 8px", display:"flex", alignItems:"center", gap:4 }}>
               <span style={{ fontFamily:"'Bebas Neue',sans-serif", fontSize:16, color:"#1D4ED8", lineHeight:1 }}>{totalStrad}</span>
@@ -310,7 +352,6 @@ function WorkBoard({ jobs, houseJobs, date, shift, liveUrl }) {
       </div>
 
       <div style={{ background:"#fff", borderRadius:14, border:"1.5px solid #EFEDE8", overflow:"hidden" }}>
-        {/* Vessel work */}
         {jobs.map((job, i) => (
           <div key={job.vessel} style={{
             padding:"11px 16px",
@@ -335,7 +376,6 @@ function WorkBoard({ jobs, houseJobs, date, shift, liveUrl }) {
           </div>
         ))}
 
-        {/* House work */}
         {houseJobs.map((job, i) => (
           <div key={job.location} style={{ padding:"11px 16px", borderBottom:i<houseJobs.length-1?"1px solid #F5F3EE":"none", background:"#FAFAFA" }}>
             <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center" }}>
@@ -359,7 +399,7 @@ function WorkBoard({ jobs, houseJobs, date, shift, liveUrl }) {
 export default function App() {
   const [member,   setMember]   = useState(null);
   const [allSpins, setAllSpins] = useState({});
-  const [loading,  setLoading]  = useState(true);
+  const [loading,  setLoading]  = useState(false);
   const [error,    setError]    = useState(null);
   const todayIdx  = getTodayIdx();
   const activeIdx = getActiveSheetIdx();
@@ -368,28 +408,17 @@ export default function App() {
     try { const s = localStorage.getItem("ilwu23_member"); if(s) setMember(JSON.parse(s)); } catch{}
   }, []);
 
+  // Fetch spin numbers for the saved member whenever their reg changes
   useEffect(() => {
-    async function fetchAll() {
-      setLoading(true); setError(null);
-      try {
-        const results = await Promise.all(
-          SHEETS.map(async sh => {
-            const [rA, rB] = await Promise.all([fetch(csvUrl(sh.id,"A")), fetch(csvUrl(sh.id,"B"))]);
-            const [cA, cB] = await Promise.all([rA.text(), rB.text()]);
-            return { id:sh.id, spins:[...parseSpinCSV(cA),...parseSpinCSV(cB)] };
-          })
-        );
-        const map = {};
-        results.forEach(r => { map[r.id] = r.spins; });
-        setAllSpins(map);
-      } catch { setError("Using cached data."); }
-      setLoading(false);
-    }
-    fetchAll();
-  }, []);
+    if (!member?.reg) { setLoading(false); return; }
+    setLoading(true); setError(null);
+    fetchMemberRecords(member.reg)
+      .then(map => { setAllSpins(map); setLoading(false); })
+      .catch(() => { setError("Using cached data."); setLoading(false); });
+  }, [member?.reg]);
 
   function saveMember(m) { localStorage.setItem("ilwu23_member", JSON.stringify(m)); setMember(m); }
-  function resetMember() { localStorage.removeItem("ilwu23_member"); setMember(null); }
+  function resetMember() { localStorage.removeItem("ilwu23_member"); setMember(null); setAllSpins({}); }
 
   function findRecord(sheetId) {
     const live = allSpins[sheetId]?.find(s => s.reg === member?.reg);
@@ -397,7 +426,6 @@ export default function App() {
     const fb = FALLBACK[sheetId]?.find(s => s.reg === member?.reg);
     return fb || null;
   }
-
 
   // ─── PULL TO REFRESH ─────────────────────────────────────────────────────
   const [refreshing, setRefreshing] = useState(false);
@@ -419,25 +447,17 @@ export default function App() {
     ptrEl.current.style.height = "0px";
     ptrEl.current.style.opacity = "0";
     ptrStartY.current = null;
-    if (h > 40) {
+    if (h > 40 && member?.reg) {
       setRefreshing(true);
       try {
-        const results = await Promise.all(
-          SHEETS.map(async sh => {
-            const [rA, rB] = await Promise.all([fetch(csvUrl(sh.id,"A")), fetch(csvUrl(sh.id,"B"))]);
-            const [cA, cB] = await Promise.all([rA.text(), rB.text()]);
-            return { id:sh.id, spins:[...parseSpinCSV(cA),...parseSpinCSV(cB)] };
-          })
-        );
-        const map = {};
-        results.forEach(r => { map[r.id] = r.spins; });
+        const map = await fetchMemberRecords(member.reg);
         setAllSpins(map);
       } catch {}
       setRefreshing(false);
     }
   }
 
-  if (!member) return <Onboarding onSave={saveMember} allSpins={allSpins} loading={loading} />;
+  if (!member) return <Onboarding onSave={saveMember} />;
 
   const resolvedRecords = {};
   SHEETS.forEach(sh => { resolvedRecords[sh.id] = findRecord(sh.id); });
@@ -453,7 +473,7 @@ export default function App() {
         @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=DM+Mono:wght@500&family=Bebas+Neue&display=swap');
         * { box-sizing:border-box; margin:0; padding:0; -webkit-tap-highlight-color:transparent; }
         button { cursor:pointer; border:none; background:none; font:inherit; }
-        input:focus { border-color:#C41230 !important; }
+        input:focus { border-color:#1B3A6B !important; }
         a { text-decoration:none; color:inherit; }
       `}</style>
 
@@ -479,7 +499,7 @@ export default function App() {
           {loading && <span style={{ fontSize:11, color:"#ccc" }}>↻</span>}
           {error   && <span style={{ fontSize:11, color:"#D97706" }}>⚠</span>}
           <button onClick={resetMember}
-            style={{ background:"#C41230", borderRadius:20, padding:"7px 14px", fontSize:12, fontWeight:700, color:"#fff", border:"none", letterSpacing:"0.3px" }}>
+            style={{ background:"#1B3A6B", borderRadius:20, padding:"7px 14px", fontSize:12, fontWeight:700, color:"#fff", border:"none", letterSpacing:"0.3px" }}>
             Change #
           </button>
         </div>
