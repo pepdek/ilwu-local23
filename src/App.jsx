@@ -282,6 +282,11 @@ function Onboarding({ onSave }) {
         }
         if (match) { setFound(match); setStatus("found"); }
         else setStatus("notfound");
+        window.posthog?.capture('reg_lookup', {
+          reg_number: trimmed,
+          result: match ? 'found' : 'not_found',
+          cls: match?.cls,
+        });
       } catch (err) {
         console.error("lookup error", err);
         let match = null;
@@ -291,6 +296,11 @@ function Onboarding({ onSave }) {
         }
         if (match) { setFound(match); setStatus("found"); }
         else setStatus("notfound");
+        window.posthog?.capture('reg_lookup', {
+          reg_number: trimmed,
+          result: match ? 'found' : 'not_found',
+          cls: match?.cls,
+        });
       }
     }, 400);
   }
@@ -312,7 +322,7 @@ function Onboarding({ onSave }) {
           <div style={{ fontSize:15, color:C.muted, marginBottom:28 }}>Enter it once. We'll remember it.</div>
           <label style={{ fontSize:12, fontWeight:600, color:"#555", display:"block", marginBottom:8 }}>Registration #</label>
           <input
-            type="tel" inputMode="numeric" placeholder="e.g. 230456"
+            type="tel" inputMode="numeric" placeholder="e.g. 61225"
             value={val} maxLength={8}
             onChange={e => { setVal(e.target.value); lookup(e.target.value); }}
             style={{
@@ -350,7 +360,11 @@ function Onboarding({ onSave }) {
           </div>
           <button
             disabled={!active}
-            onClick={() => found && onSave({ reg:found.reg, cls:found.cls }, spinsCache)}
+            onClick={() => {
+              if (!found) return;
+              window.posthog?.capture('member_onboarded', { reg_number: found.reg, cls: found.cls });
+              onSave({ reg: found.reg, cls: found.cls }, spinsCache);
+            }}
             aria-label="Get started"
             style={{
               width:"100%", background: active ? C.navy : C.border, color: active ? C.yellow : C.muted,
@@ -444,7 +458,10 @@ function WeekCard({ sheet, record, todayIdx, isCurrent }) {
           return (
             <button
               key={dk}
-              onClick={() => setSelDay(di)}
+              onClick={() => {
+                setSelDay(di);
+                window.posthog?.capture('day_selected', { day: DAYS_FULL[di], week: sheet.label });
+              }}
               aria-label={`${DAYS_FULL[di]}: spin ${spin ?? "no data"}`}
               style={{
                 background:  bg,
@@ -492,7 +509,15 @@ function WeekCarousel({ sheets, records, todayIdx, activeIdx }) {
               style={{ width: i===page ? 20 : 7, height:7, borderRadius:4, background: i===page ? C.navy : C.border, border:"none", cursor:"pointer", transition:"all 0.2s", padding:0 }} />
           ))}
         </div>
-        <button onClick={() => setPage(p => Math.min(sheets.length-1, p+1))} aria-label="Next week"
+        <button
+          onClick={() => {
+            setPage(p => {
+              const next = Math.min(sheets.length - 1, p + 1);
+              if (next > p) window.posthog?.capture('next_week_viewed', { from_week: sheets[activeIdx].label });
+              return next;
+            });
+          }}
+          aria-label="Next week"
           style={{ padding:"8px 18px", minHeight:44, borderRadius:20, background: atEnd ? C.cream : C.navy, color: atEnd ? C.muted : C.white, fontSize:13, fontWeight:600, border:"none", cursor: atEnd ? "default" : "pointer" }}>
           Next Week →
         </button>
@@ -529,7 +554,10 @@ function WorkBoard({ board, liveUrl }) {
           </div>
         </div>
         <a href={liveUrl} target="_blank" rel="noopener noreferrer"
-          style={{ fontSize:12, color:C.blue, fontWeight:600, marginTop:4 }}>
+          style={{ fontSize:12, color:C.blue, fontWeight:600, marginTop:4 }}
+          onClick={() => window.posthog?.capture('external_link_clicked', {
+            label: isNight ? 'Night Work Board' : 'Day Work Board', url: liveUrl,
+          })}>
           Full board ↗
         </a>
       </div>
@@ -754,8 +782,12 @@ export default function App() {
         <div style={{ marginBottom:12 }}>
           <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:8 }}>
             <div style={{ fontFamily:"'Bebas Neue',sans-serif", fontSize:13, color:C.navy, letterSpacing:"1px" }}>Vessels · Tacoma</div>
-            <a href="https://www.nwseaportalliance.com/cargo-operations/vessel-schedules-and-calendar" target="_blank" rel="noopener noreferrer"
-              style={{ fontSize:12, color:C.blue, fontWeight:600 }}>Full schedule ↗</a>
+            <a href="https://www.nwseaportalliance.com/cargo-operations/vessel-schedules-and-calendar"
+              target="_blank" rel="noopener noreferrer"
+              style={{ fontSize:12, color:C.blue, fontWeight:600 }}
+              onClick={() => window.posthog?.capture('external_link_clicked', {
+                label: 'Full Vessel Schedule', url: 'https://www.nwseaportalliance.com/cargo-operations/vessel-schedules-and-calendar',
+              })}>Full schedule ↗</a>
           </div>
 
           {/* Stat tiles */}
