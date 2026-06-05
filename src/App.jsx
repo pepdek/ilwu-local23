@@ -372,7 +372,7 @@ function Onboarding({ onSave }) {
               letterSpacing:"1px", cursor: active ? "pointer" : "default", border:"none", marginTop:16,
               transition:"background 0.2s, color 0.2s",
             }}>
-            GET STARTED →
+            Check My Spins →
           </button>
           <div style={{ fontSize:12, color:C.muted, textAlign:"center", marginTop:14 }}>Saved to your device only. No account needed.</div>
         </div>
