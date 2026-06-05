@@ -780,11 +780,22 @@ export default function App() {
 
         {/* VESSELS */}
         <div style={{ marginBottom:12 }}>
-          <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:8 }}>
-            <div style={{ fontFamily:"'Bebas Neue',sans-serif", fontSize:13, color:C.navy, letterSpacing:"1px" }}>Vessels · Tacoma</div>
+          <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:10 }}>
+            <div style={{ display:"flex", alignItems:"center", gap:10 }}>
+              <span style={{ fontSize:24, lineHeight:1 }} role="img" aria-label="Vessels">🚢</span>
+              <div>
+                <div style={{ fontFamily:"'Bebas Neue',sans-serif", fontSize:22, color:C.navy, letterSpacing:"2px", lineHeight:1 }}>
+                  Vessels · Tacoma
+                </div>
+                <div style={{ display:"flex", alignItems:"center", gap:5, marginTop:3 }}>
+                  <span style={{ width:7, height:7, borderRadius:"50%", background:"#22c55e", display:"inline-block" }} />
+                  <span style={{ fontSize:10, color:"#22c55e", fontWeight:700, letterSpacing:"0.5px", fontFamily:"'DM Sans',sans-serif" }}>LIVE</span>
+                </div>
+              </div>
+            </div>
             <a href="https://www.nwseaportalliance.com/cargo-operations/vessel-schedules-and-calendar"
               target="_blank" rel="noopener noreferrer"
-              style={{ fontSize:12, color:C.blue, fontWeight:600 }}
+              style={{ fontSize:12, color:C.blue, fontWeight:600, marginTop:4 }}
               onClick={() => window.posthog?.capture('external_link_clicked', {
                 label: 'Full Vessel Schedule', url: 'https://www.nwseaportalliance.com/cargo-operations/vessel-schedules-and-calendar',
               })}>Full schedule ↗</a>
