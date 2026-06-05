@@ -13,8 +13,11 @@ const SHEETS = [
   },
 ];
 
-const memberUrl = (id, tab, reg) =>
-  `https://docs.google.com/spreadsheets/d/${id}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(tab)}&tq=${encodeURIComponent(`select * where A='${reg}'`)}`;
+// NOTE: export?format=csv ignores the sheet= tab name and always returns
+// the first sheet. gviz/tq?tqx=out:csv correctly routes to the named tab
+// while returning all rows as plain quoted CSV (no filter query used here).
+const csvUrl = (id, tab) =>
+  `https://docs.google.com/spreadsheets/d/${id}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(tab)}`;
 
 function getActiveSheetIdx() {
   const today = new Date(); today.setHours(0,0,0,0);
@@ -36,7 +39,6 @@ const FALLBACK = {
 };
 
 // ─── LIVE NIGHT BOARD 6/4/26 ─────────────────────────────────────────────────
-// preferred = he prefers SSAT (Matson) and PCT
 const NIGHT_WORK = [
   {
     vessel:"HMM GARAM",        terminal:"P 4",  start:"6 PM",
@@ -86,49 +88,56 @@ const DAYS_FULL = ["Saturday","Sunday","Monday","Tuesday","Wednesday","Thursday"
 const JS_TO_IDX = [1,2,3,4,5,6,0];
 function getTodayIdx() { return JS_TO_IDX[new Date().getDay()]; }
 
-// Parse the single CSV row returned by a gviz filtered query.
-// The response may include a header row — skip any line whose first cell is non-numeric.
-function parseSingleRow(csv) {
-  if (!csv || !csv.trim()) return null;
-  const lines = csv.trim().split("\n");
-  for (const line of lines) {
-    const cols = line.split(",").map(c => c.replace(/^"|"$/g,"").trim());
-    if (cols[0] && !isNaN(cols[0]) && cols[0] !== "") {
-      return {
-        reg: cols[0].trim(),
-        cls: cols[1]?.trim() || "A",
-        sat: parseInt(cols[2]) || null,
-        sun: parseInt(cols[3]) || null,
-        mon: parseInt(cols[4]) || null,
-        tue: parseInt(cols[5]) || null,
-        wed: parseInt(cols[6]) || null,
-        thu: parseInt(cols[7]) || null,
-        fri: parseInt(cols[8]) || null,
-      };
-    }
-  }
-  return null;
+// Parse a gviz bulk CSV response. Values are wrapped in double quotes;
+// non-data rows (date header, column-label row) have a non-numeric first cell.
+// We simply keep rows where col[0] strips to a valid number.
+function parseSpinCSV(csv) {
+  const rows = csv.trim().split("\n").map(r =>
+    r.split(",").map(c => c.replace(/^"|"$/g,"").trim())
+  );
+  return rows
+    .filter(r => r[0] && !isNaN(r[0]) && r[0] !== "")
+    .map(r => ({
+      reg: r[0].trim(),
+      cls: r[1]?.trim() || "A",
+      sat: parseInt(r[2]) || null,
+      sun: parseInt(r[3]) || null,
+      mon: parseInt(r[4]) || null,
+      tue: parseInt(r[5]) || null,
+      wed: parseInt(r[6]) || null,
+      thu: parseInt(r[7]) || null,
+      fri: parseInt(r[8]) || null,
+    }));
 }
 
-// Fetch a single member's record across all tabs for every sheet simultaneously.
-// Returns { [sheetId]: record | null }
 const TABS = ["A", "B", "Casual"];
-async function fetchMemberRecords(reg) {
+
+// Fetch all 6 CSVs (2 sheets × 3 tabs) simultaneously and build a
+// { [sheetId]: MemberRecord[] } map. console.log first 200 chars of each
+// response so we can verify what Google is actually returning.
+async function fetchAllCSVs() {
+  const pairs = SHEETS.flatMap(sh => TABS.map(tab => ({ sh, tab })));
   const results = await Promise.all(
-    SHEETS.map(async sh => {
-      const csvs = await Promise.all(
-        TABS.map(tab => fetch(memberUrl(sh.id, tab, reg)).then(r => r.text()).catch(() => ""))
-      );
-      let record = null;
-      for (const csv of csvs) {
-        record = parseSingleRow(csv);
-        if (record) break;
-      }
-      return { id: sh.id, record };
-    })
+    pairs.map(({ sh, tab }) =>
+      fetch(csvUrl(sh.id, tab))
+        .then(r => r.text())
+        .then(csv => {
+          console.log(`[${sh.label} / ${tab}] first 200 chars:`, csv.slice(0, 200));
+          return { sheetId: sh.id, spins: parseSpinCSV(csv) };
+        })
+        .catch(err => {
+          console.warn(`fetch failed [${sh.label} / ${tab}]`, err);
+          return { sheetId: sh.id, spins: [] };
+        })
+    )
   );
   const map = {};
-  results.forEach(({ id, record }) => { map[id] = record ? [record] : []; });
+  for (const { sheetId, spins } of results) {
+    if (!map[sheetId]) map[sheetId] = [];
+    // Merge: avoid duplicates if a reg appears in multiple tabs
+    const existing = new Set(map[sheetId].map(s => s.reg));
+    map[sheetId].push(...spins.filter(s => !existing.has(s.reg)));
+  }
   return map;
 }
 
@@ -142,34 +151,48 @@ function Onboarding({ onSave }) {
   const [val, setVal]       = useState("");
   const [status, setStatus] = useState(null);
   const [found, setFound]   = useState(null);
-  const debounceRef         = useRef(null);
+  const [spinsCache, setSpinsCache] = useState(null);
+  const debounceRef = useRef(null);
 
-  async function lookup(reg) {
+  function lookup(reg) {
     setFound(null);
     if (reg.length < 4) { setStatus(null); return; }
     setStatus("searching");
     clearTimeout(debounceRef.current);
     debounceRef.current = setTimeout(async () => {
-      // Check hardcoded fallbacks first (instant)
-      for (const arr of Object.values(FALLBACK)) {
-        const fb = arr.find(s => s.reg === reg.trim());
-        if (fb) { setFound(fb); setStatus("found"); return; }
-      }
-      // Query both sheets across all tabs simultaneously
+      const trimmed = reg.trim();
       try {
-        const fetches = SHEETS.flatMap(sh =>
-          TABS.map(tab =>
-            fetch(memberUrl(sh.id, tab, reg.trim())).then(r => r.text()).catch(() => "")
-          )
-        );
-        const csvs = await Promise.all(fetches);
-        for (const csv of csvs) {
-          const record = parseSingleRow(csv);
-          if (record) { setFound(record); setStatus("found"); return; }
+        // Fetch all 6 CSVs simultaneously
+        const allSpins = await fetchAllCSVs();
+        setSpinsCache(allSpins);
+
+        // Search loaded data first
+        let match = null;
+        for (const spins of Object.values(allSpins)) {
+          match = spins.find(s => s.reg === trimmed) || null;
+          if (match) break;
         }
-        setStatus("notfound");
-      } catch {
-        setStatus("notfound");
+
+        // Fall back to hardcoded data if not found in live sheets
+        if (!match) {
+          for (const arr of Object.values(FALLBACK)) {
+            match = arr.find(s => s.reg === trimmed) || null;
+            if (match) break;
+          }
+        }
+
+        if (match) { setFound(match); setStatus("found"); }
+        else setStatus("notfound");
+      } catch (err) {
+        console.error("lookup error", err);
+        // Last resort: check fallbacks
+        let match = null;
+        for (const arr of Object.values(FALLBACK)) {
+          match = arr.find(s => s.reg === trimmed) || null;
+          if (match) break;
+        }
+        if (match) { setFound(match); setStatus("found"); }
+        else setStatus("notfound");
       }
     }, 400);
   }
@@ -223,7 +246,7 @@ function Onboarding({ onSave }) {
             )}
           </div>
           <button disabled={status!=="found"}
-            onClick={() => found && onSave({ reg:found.reg, cls:found.cls })}
+            onClick={() => found && onSave({ reg:found.reg, cls:found.cls }, spinsCache)}
             style={{ width:"100%", background:status==="found"?"#C41230":"#E5E3DE", color:status==="found"?"#fff":"#aaa", borderRadius:12, padding:"17px", fontSize:16, fontWeight:700, cursor:status==="found"?"pointer":"default", border:"none", marginTop:16 }}>
             Get Started →
           </button>
@@ -408,17 +431,26 @@ export default function App() {
     try { const s = localStorage.getItem("ilwu23_member"); if(s) setMember(JSON.parse(s)); } catch{}
   }, []);
 
-  // Fetch spin numbers for the saved member whenever their reg changes
+  // For returning visitors: re-fetch spin data on load
   useEffect(() => {
-    if (!member?.reg) { setLoading(false); return; }
+    if (!member?.reg) return;
     setLoading(true); setError(null);
-    fetchMemberRecords(member.reg)
+    fetchAllCSVs()
       .then(map => { setAllSpins(map); setLoading(false); })
       .catch(() => { setError("Using cached data."); setLoading(false); });
   }, [member?.reg]);
 
-  function saveMember(m) { localStorage.setItem("ilwu23_member", JSON.stringify(m)); setMember(m); }
-  function resetMember() { localStorage.removeItem("ilwu23_member"); setMember(null); setAllSpins({}); }
+  function saveMember(m, spinsFromLookup) {
+    localStorage.setItem("ilwu23_member", JSON.stringify(m));
+    setMember(m);
+    // Seed spin data from the lookup that just ran — no extra fetch needed
+    if (spinsFromLookup) setAllSpins(spinsFromLookup);
+  }
+  function resetMember() {
+    localStorage.removeItem("ilwu23_member");
+    setMember(null);
+    setAllSpins({});
+  }
 
   function findRecord(sheetId) {
     const live = allSpins[sheetId]?.find(s => s.reg === member?.reg);
@@ -447,12 +479,9 @@ export default function App() {
     ptrEl.current.style.height = "0px";
     ptrEl.current.style.opacity = "0";
     ptrStartY.current = null;
-    if (h > 40 && member?.reg) {
+    if (h > 40) {
       setRefreshing(true);
-      try {
-        const map = await fetchMemberRecords(member.reg);
-        setAllSpins(map);
-      } catch {}
+      try { const map = await fetchAllCSVs(); setAllSpins(map); } catch {}
       setRefreshing(false);
     }
   }
