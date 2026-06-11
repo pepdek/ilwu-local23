@@ -1018,7 +1018,7 @@ function DispatchApp() {
                     <div style={{ display:"flex", alignItems:"center" }}>
                       <span style={{ fontWeight:600, fontSize:14, color: v.status==="departed" ? C.muted : C.dark }}>{v.name}</span>
                       <a
-                        href={`https://www.marinetraffic.com/en/ais/home/shipname/${encodeURIComponent(v.name)}`}
+                        href={`https://www.vesselfinder.com/?name=${encodeURIComponent(v.name)}`}
                         target="_blank" rel="noopener noreferrer"
                         onClick={() => window.posthog?.capture('ship_tracker_clicked', { vessel: v.name })}
                         style={{ fontSize:10, color:C.blue, fontFamily:"'DM Mono',monospace", fontWeight:600, textDecoration:"none", marginLeft:8, whiteSpace:"nowrap" }}>
