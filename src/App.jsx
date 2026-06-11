@@ -174,26 +174,34 @@ function parseDispatchHTML(html) {
   const date  = dateMatch?.[1]  ?? "";
   const shift = shiftMatch?.[1] ?? "";
 
-  const cellRegex = /<td><a[^>]+>([\s\S]*?)<\/a><\/td>/g;
-  const cells = [];
-  let m;
-  while ((m = cellRegex.exec(html)) !== null) {
-    const v = m[1].trim();
-    cells.push(v === "&nbsp;" ? "" : v);
+  // Split HTML at HOUSE WORK heading so we can parse each section separately
+  const housePos   = html.search(/<h1><a[^>]+>HOUSE\s+WORK<\/a><\/h1>/i);
+  const vesselHtml = housePos > -1 ? html.slice(0, housePos) : html;
+  const houseHtml  = housePos > -1 ? html.slice(housePos)    : "";
+
+  function parseRows(chunk) {
+    const re = /<td><a[^>]+>([\s\S]*?)<\/a><\/td>/g;
+    const cells = [];
+    let m;
+    while ((m = re.exec(chunk)) !== null) {
+      const v = m[1].trim();
+      cells.push(v === "&nbsp;" ? "" : v);
+    }
+    const rows = [];
+    for (let i = 0; i + 12 <= cells.length; i += 12) {
+      const row = cells.slice(i, i + 12);
+      if (!row[0]) continue;
+      rows.push({
+        vessel:   row[0],
+        terminal: row[1],
+        start:    row[11],
+        details:  row.slice(2, 11).filter(c => c),
+      });
+    }
+    return rows;
   }
 
-  const jobs = [];
-  for (let i = 0; i + 12 <= cells.length; i += 12) {
-    const row = cells.slice(i, i + 12);
-    if (!row[0]) continue;
-    jobs.push({
-      vessel:   row[0],
-      terminal: row[1],
-      start:    row[11],
-      details:  row.slice(2, 11).filter(c => c),
-    });
-  }
-  return { date, shift, jobs };
+  return { date, shift, jobs: parseRows(vesselHtml), houseJobs: parseRows(houseHtml) };
 }
 
 async function fetchDispatchBoard(screen) {
@@ -578,10 +586,44 @@ function WeekCarousel({ sheets, records, todayIdx }) {
 }
 
 // ─── WORK BOARD ───────────────────────────────────────────────────────────────
+// Shared row renderer used for both vessel and house entries
+function JobRow({ job, isLast, isHouse }) {
+  return (
+    <div style={{
+      padding:"11px 16px",
+      borderBottom: isLast ? "none" : `1px solid ${isHouse ? C.border : C.cream}`,
+      background: isHouse ? C.cream : C.white,
+    }}>
+      <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", gap:8 }}>
+        <div style={{ minWidth:0 }}>
+          <div style={{ fontWeight:600, fontSize:13, color: isHouse ? "#555" : C.dark }}>{job.vessel}</div>
+          <div style={{ fontSize:11, color:C.muted, marginTop:1 }}>{job.terminal} · {job.start}</div>
+        </div>
+        {job.details.length > 0 && (
+          <div style={{ display:"flex", gap:4, flexWrap:"wrap", justifyContent:"flex-end", flexShrink:0, maxWidth:"55%" }}>
+            {job.details.slice(0, 3).map((d, di) => (
+              <span key={di} style={{
+                fontSize:10, borderRadius:5, padding:"3px 7px", fontWeight:600, whiteSpace:"nowrap",
+                background: isHouse ? C.border : C.cream,
+                color: isHouse ? "#555" : C.navy,
+              }}>{d}</span>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function WorkBoard({ board, liveUrl }) {
-  const isNight = board?.shift?.toUpperCase().includes("NIGHT");
-  const icon    = isNight ? "🌙" : "☀️";
+  const isNight     = board?.shift?.toUpperCase().includes("NIGHT");
+  const icon        = isNight ? "🌙" : "☀️";
   const accentColor = isNight ? C.navy : C.blue;
+
+  const vesselJobs = board?.jobs      ?? [];
+  const houseJobs  = board?.houseJobs ?? [];
+  const hasVessel  = vesselJobs.length > 0;
+  const hasHouse   = houseJobs.length  > 0;
 
   return (
     <div style={{ marginBottom:16 }}>
@@ -613,35 +655,52 @@ function WorkBoard({ board, liveUrl }) {
         </a>
       </div>
 
-      {/* ── Job list ── */}
+      {/* ── Card ── */}
       <div style={{ background:C.white, borderRadius:14, border:`1.5px solid ${C.border}`, borderLeft:`3px solid ${accentColor}`, overflow:"hidden" }}>
         {!board ? (
           <div style={{ padding:"18px 16px", textAlign:"center", color:C.muted, fontSize:13 }}>
             Loading dispatch board…
           </div>
-        ) : board.jobs.length === 0 ? (
+        ) : !hasVessel && !hasHouse ? (
           <div style={{ padding:"18px 16px", textAlign:"center", color:C.muted, fontSize:13 }}>
             No jobs posted yet
           </div>
-        ) : board.jobs.map((job, i) => (
-          <div key={i} style={{ padding:"11px 16px", borderBottom:i < board.jobs.length-1 ? `1px solid ${C.cream}` : "none" }}>
-            <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", gap:8 }}>
-              <div style={{ minWidth:0 }}>
-                <div style={{ fontWeight:600, fontSize:13, color:C.dark }}>{job.vessel}</div>
-                <div style={{ fontSize:11, color:C.muted, marginTop:1 }}>{job.terminal} · {job.start}</div>
-              </div>
-              {job.details.length > 0 && (
-                <div style={{ display:"flex", gap:4, flexWrap:"wrap", justifyContent:"flex-end", flexShrink:0, maxWidth:"55%" }}>
-                  {job.details.slice(0, 3).map((d, di) => (
-                    <span key={di} style={{ fontSize:10, background:C.cream, color:C.navy, borderRadius:5, padding:"3px 7px", fontWeight:600, whiteSpace:"nowrap" }}>
-                      {d}
+        ) : (
+          <>
+            {/* ── VESSEL WORK ── */}
+            {hasVessel && (
+              <>
+                {/* Section label — only shown when house work also exists */}
+                {hasHouse && (
+                  <div style={{ padding:"6px 16px", background:C.navy, display:"flex", alignItems:"center", gap:6 }}>
+                    <span style={{ fontFamily:"'Bebas Neue',sans-serif", fontSize:11, color:"rgba(255,255,255,0.6)", letterSpacing:"1.5px" }}>
+                      🚢 VESSEL WORK
                     </span>
-                  ))}
+                  </div>
+                )}
+                {vesselJobs.map((job, i) => (
+                  <JobRow key={i} job={job} isHouse={false}
+                    isLast={i === vesselJobs.length - 1 && !hasHouse} />
+                ))}
+              </>
+            )}
+
+            {/* ── HOUSE WORK ── */}
+            {hasHouse && (
+              <>
+                <div style={{ padding:"6px 16px", background:C.blue, display:"flex", alignItems:"center", gap:6 }}>
+                  <span style={{ fontFamily:"'Bebas Neue',sans-serif", fontSize:11, color:"rgba(255,255,255,0.75)", letterSpacing:"1.5px" }}>
+                    🏗 HOUSE WORK
+                  </span>
                 </div>
-              )}
-            </div>
-          </div>
-        ))}
+                {houseJobs.map((job, i) => (
+                  <JobRow key={i} job={job} isHouse={true}
+                    isLast={i === houseJobs.length - 1} />
+                ))}
+              </>
+            )}
+          </>
+        )}
       </div>
     </div>
   );
