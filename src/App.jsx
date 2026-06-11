@@ -663,6 +663,16 @@ function VesselBadge({ status }) {
   );
 }
 
+// ─── TIMESTAMP HELPER ─────────────────────────────────────────────────────────
+function timeSince(date) {
+  if (!date) return null;
+  const secs = Math.floor((Date.now() - date) / 1000);
+  if (secs < 60)   return "Updated just now";
+  if (secs < 120)  return "Updated 1 min ago";
+  if (secs < 3600) return `Updated ${Math.floor(secs / 60)}m ago`;
+  return `Updated ${Math.floor(secs / 3600)}h ago`;
+}
+
 // ─── MAIN ─────────────────────────────────────────────────────────────────────
 function DispatchApp() {
   const [sheets,   setSheets]   = useState(SHEETS_FALLBACK);
@@ -674,8 +684,16 @@ function DispatchApp() {
   const [vesselError, setVesselError] = useState(false);
   const [nightBoard,  setNightBoard]  = useState(null);
   const [dayBoard,    setDayBoard]    = useState(null);
+  const [lastFetched, setLastFetched] = useState(null);
+  const [tick,        setTick]        = useState(0); // increments every 60s to re-render timeSince
   const todayIdx       = getTodayIdx();
   const relevantSheets = getRelevantSheets(sheets);
+
+  // Tick every 60s so timeSince() stays accurate while the app is open
+  useEffect(() => {
+    const interval = setInterval(() => setTick(t => t + 1), 60000);
+    return () => clearInterval(interval);
+  }, []);
 
   useEffect(() => {
     try { const s = localStorage.getItem("ilwu23_member"); if(s) setMember(JSON.parse(s)); } catch{}
@@ -690,7 +708,7 @@ function DispatchApp() {
     if (!member?.reg) return;
     setLoading(true); setError(null);
     fetchAllCSVs(getRelevantSheets(sheets))
-      .then(map => { setAllSpins(map); setLoading(false); })
+      .then(map => { setAllSpins(map); setLoading(false); setLastFetched(new Date()); })
       .catch(() => { setError("Using cached data."); setLoading(false); });
   }, [member?.reg]);
 
@@ -765,6 +783,7 @@ function DispatchApp() {
         if (v)     setVessels(v);
         if (night) setNightBoard(night);
         if (day)   setDayBoard(day);
+        setLastFetched(new Date());
       } catch {}
       setRefreshing(false);
     }
@@ -816,8 +835,21 @@ function DispatchApp() {
           </div>
         </div>
         <div style={{ display:"flex", alignItems:"center", gap:8 }}>
-          {loading && <span style={{ fontSize:13, color:"rgba(255,255,255,0.5)" }}>↻</span>}
-          {error   && <span style={{ fontSize:13, color:C.yellow }}>⚠</span>}
+          {lastFetched && !loading && (
+            <span style={{ fontSize:11, color:"#059669", fontFamily:"'DM Mono',monospace" }}>
+              ● {timeSince(lastFetched)}
+            </span>
+          )}
+          {loading && (
+            <span style={{ fontSize:11, color:C.muted, fontFamily:"'DM Mono',monospace" }}>
+              ● Fetching...
+            </span>
+          )}
+          {error && (
+            <span style={{ fontSize:11, color:"#D97706", fontFamily:"'DM Mono',monospace" }}>
+              ⚠ Cached
+            </span>
+          )}
           <a href="/about" style={{ fontSize:11, color:C.blue, fontFamily:"'DM Sans',sans-serif", fontWeight:600, textDecoration:"none" }}>About</a>
           <button onClick={resetMember} aria-label="Change registration number"
             style={{ background:C.blue, borderRadius:20, padding:"8px 16px", minHeight:36, fontSize:12, fontWeight:700, color:C.white, border:"none", letterSpacing:"0.3px" }}>
@@ -890,7 +922,16 @@ function DispatchApp() {
               {vessels.map((v, i) => (
                 <div key={`${v.name}-${i}`} style={{ display:"flex", alignItems:"center", padding:"12px 16px", borderBottom:i<vessels.length-1?`1px solid ${C.cream}`:"none" }}>
                   <div style={{ flex:1 }}>
-                    <div style={{ fontWeight:600, fontSize:14, color: v.status==="departed" ? C.muted : C.dark }}>{v.name}</div>
+                    <div style={{ display:"flex", alignItems:"center" }}>
+                      <span style={{ fontWeight:600, fontSize:14, color: v.status==="departed" ? C.muted : C.dark }}>{v.name}</span>
+                      <a
+                        href={`https://www.marinetraffic.com/en/ais/home/shipname/${encodeURIComponent(v.name)}`}
+                        target="_blank" rel="noopener noreferrer"
+                        onClick={() => window.posthog?.capture('ship_tracker_clicked', { vessel: v.name })}
+                        style={{ fontSize:10, color:C.blue, fontFamily:"'DM Mono',monospace", fontWeight:600, textDecoration:"none", marginLeft:8, whiteSpace:"nowrap" }}>
+                        ⚓ TRACK
+                      </a>
+                    </div>
                     <div style={{ fontSize:12, color:C.muted, marginTop:1 }}>{v.terminal} · {v.cargo}</div>
                   </div>
                   <div style={{ textAlign:"right" }}>
