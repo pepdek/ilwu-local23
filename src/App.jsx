@@ -15,12 +15,8 @@ const C = {
 
 // ─── SPIN SHEET DATA ──────────────────────────────────────────────────────────
 // Hardcoded fallback — also used as default until sheet-config.json loads.
+// Only keep current + next; expired sheets are dropped.
 const SHEETS_FALLBACK = [
-  {
-    id: "1hnw6TCvT7z71hxFv8Fn2L2G08yAaBdegwRLiUttyug8",
-    label: "May 30 – Jun 5",
-    startSat: new Date("2026-05-30"),
-  },
   {
     id: "1UVrSQ4Yz9s7Fy3R4riSce824vv0a3pYyMwC7M7EPvW4",
     label: "Jun 6 – Jun 12",
@@ -36,17 +32,22 @@ const SHEETS_FALLBACK = [
 const csvUrl = (id, tab) =>
   `https://docs.google.com/spreadsheets/d/${id}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(tab)}`;
 
-// Takes the current sheets array so it works with dynamic config
-function getActiveSheetIdx(sheets) {
-  const today = new Date(); today.setHours(0,0,0,0);
-  for (let i = sheets.length - 1; i >= 0; i--) {
-    if (today >= sheets[i].startSat) return i;
+// Returns exactly [currentSheet, nextSheet] — expired sheets are dropped.
+// If only one sheet is available, returns a single-item array.
+function getRelevantSheets(sheets) {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const sorted = [...sheets].sort((a, b) => a.startSat - b.startSat);
+  let currentIdx = -1;
+  for (let i = sorted.length - 1; i >= 0; i--) {
+    if (sorted[i].startSat <= today) { currentIdx = i; break; }
   }
-  return 0;
+  if (currentIdx === -1) currentIdx = 0; // all sheets are future — show earliest
+  return sorted.slice(currentIdx, currentIdx + 2);
 }
 
-// Loads sheet IDs from /sheet-config.json (written by the scheduled function)
-// and reconstructs the SHEETS array using the May 30 anchor date.
+// Loads sheet IDs from /sheet-config.json and reconstructs the SHEETS array.
+// Uses SHEETS_FALLBACK entries for known IDs; extrapolates weekly for new ones.
 async function loadSheetConfig() {
   try {
     const res = await fetch("/sheet-config.json");
@@ -55,15 +56,21 @@ async function loadSheetConfig() {
     const ids  = data.sheetIds || [];
     if (!ids.length) throw new Error("empty config");
 
-    const ANCHOR_DATE = new Date("2026-05-30");
-    const ANCHOR_ID   = "1hnw6TCvT7z71hxFv8Fn2L2G08yAaBdegwRLiUttyug8";
-    const anchorIdx   = ids.indexOf(ANCHOR_ID);
-    const baseIdx     = anchorIdx >= 0 ? anchorIdx : 0;
+    // Build date lookup from the fallback for all known IDs
+    const knownDates = {};
+    SHEETS_FALLBACK.forEach(s => { knownDates[s.id] = s.startSat; });
+
+    // Find the last known ID in the config to anchor extrapolation
+    let anchorDate = null, anchorPos = -1;
+    for (let i = ids.length - 1; i >= 0; i--) {
+      if (knownDates[ids[i]]) { anchorDate = knownDates[ids[i]]; anchorPos = i; break; }
+    }
+    if (!anchorDate) return null; // no anchor found, use fallback
 
     return ids.map((id, i) => {
-      const weeksFromAnchor = i - baseIdx;
-      const startSat = new Date(ANCHOR_DATE.getTime() + weeksFromAnchor * 7 * 86400000);
-      const endFri   = new Date(startSat.getTime() + 6 * 86400000);
+      const startSat = knownDates[id] ||
+        new Date(anchorDate.getTime() + (i - anchorPos) * 7 * 86400000);
+      const endFri = new Date(startSat.getTime() + 6 * 86400000);
       const fmt = d => d.toLocaleDateString("en-US", { month:"short", day:"numeric" });
       return { id, label: `${fmt(startSat)} – ${fmt(endFri)}`, startSat };
     });
@@ -73,10 +80,6 @@ async function loadSheetConfig() {
 }
 
 const FALLBACK = {
-  "1hnw6TCvT7z71hxFv8Fn2L2G08yAaBdegwRLiUttyug8": [
-    { reg:"230385", cls:"B", sat:108, sun:357, mon:350, tue:251, wed:261, thu:87,  fri:142 },
-    { reg:"61843",  cls:"A", sat:593, sun:663, mon:163, tue:286, wed:413, thu:42,  fri:255 },
-  ],
   "1UVrSQ4Yz9s7Fy3R4riSce824vv0a3pYyMwC7M7EPvW4": [
     { reg:"230385", cls:"B", sat:182, sun:40,  mon:28,  tue:327, wed:326, thu:163, fri:218 },
     { reg:"61843",  cls:"A", sat:237, sun:306, mon:741, tue:849, wed:61,  thu:585, fri:821 },
@@ -530,37 +533,44 @@ function WeekCard({ sheet, record, todayIdx, isCurrent }) {
   );
 }
 
-function WeekCarousel({ sheets, records, todayIdx, activeIdx }) {
+// sheets is already the relevant window (1–2 items from getRelevantSheets).
+// Index 0 is always the current week; index 1 (if present) is next week.
+function WeekCarousel({ sheets, records, todayIdx }) {
   const [page, setPage] = useState(0);
-  const atStart = page === 0;
-  const atEnd   = page === sheets.length - 1;
+  const hasNext = sheets.length > 1;
   return (
     <div style={{ marginBottom:12 }}>
-      <WeekCard sheet={sheets[page]} record={records[sheets[page].id]} todayIdx={todayIdx} isCurrent={page === activeIdx} />
-      <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginTop:10, padding:"0 2px" }}>
-        <button onClick={() => setPage(p => Math.max(0, p-1))} aria-label="Previous week"
-          style={{ padding:"8px 18px", minHeight:44, borderRadius:20, background: atStart ? C.cream : C.navy, color: atStart ? C.muted : C.white, fontSize:13, fontWeight:600, border:"none", cursor: atStart ? "default" : "pointer" }}>
-          ← This Week
-        </button>
-        <div style={{ display:"flex", gap:6 }}>
-          {sheets.map((_, i) => (
-            <button key={i} onClick={() => setPage(i)} aria-label={`Week ${i+1}`}
-              style={{ width: i===page ? 20 : 7, height:7, borderRadius:4, background: i===page ? C.navy : C.border, border:"none", cursor:"pointer", transition:"all 0.2s", padding:0 }} />
-          ))}
+      <WeekCard
+        sheet={sheets[page]}
+        record={records[sheets[page].id]}
+        todayIdx={todayIdx}
+        isCurrent={page === 0}
+      />
+      {hasNext && (
+        <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginTop:10, padding:"0 2px" }}>
+          <button onClick={() => setPage(0)} aria-label="This week"
+            style={{ padding:"8px 18px", minHeight:44, borderRadius:20, background: page===0 ? C.cream : C.navy, color: page===0 ? C.muted : C.white, fontSize:13, fontWeight:600, border:"none", cursor: page===0 ? "default" : "pointer" }}>
+            ← This Week
+          </button>
+          <div style={{ display:"flex", gap:6 }}>
+            {sheets.map((_, i) => (
+              <button key={i} onClick={() => setPage(i)} aria-label={`Week ${i+1}`}
+                style={{ width: i===page ? 20 : 7, height:7, borderRadius:4, background: i===page ? C.navy : C.border, border:"none", cursor:"pointer", transition:"all 0.2s", padding:0 }} />
+            ))}
+          </div>
+          <button
+            onClick={() => {
+              if (page < sheets.length - 1) {
+                window.posthog?.capture('next_week_viewed', { from_week: sheets[0].label });
+                setPage(1);
+              }
+            }}
+            aria-label="Next week"
+            style={{ padding:"8px 18px", minHeight:44, borderRadius:20, background: page===1 ? C.cream : C.navy, color: page===1 ? C.muted : C.white, fontSize:13, fontWeight:600, border:"none", cursor: page===1 ? "default" : "pointer" }}>
+            Next Week →
+          </button>
         </div>
-        <button
-          onClick={() => {
-            setPage(p => {
-              const next = Math.min(sheets.length - 1, p + 1);
-              if (next > p) window.posthog?.capture('next_week_viewed', { from_week: sheets[activeIdx].label });
-              return next;
-            });
-          }}
-          aria-label="Next week"
-          style={{ padding:"8px 18px", minHeight:44, borderRadius:20, background: atEnd ? C.cream : C.navy, color: atEnd ? C.muted : C.white, fontSize:13, fontWeight:600, border:"none", cursor: atEnd ? "default" : "pointer" }}>
-          Next Week →
-        </button>
-      </div>
+      )}
     </div>
   );
 }
@@ -662,8 +672,8 @@ export default function App() {
   const [vesselError, setVesselError] = useState(false);
   const [nightBoard,  setNightBoard]  = useState(null);
   const [dayBoard,    setDayBoard]    = useState(null);
-  const todayIdx  = getTodayIdx();
-  const activeIdx = getActiveSheetIdx(sheets);
+  const todayIdx       = getTodayIdx();
+  const relevantSheets = getRelevantSheets(sheets);
 
   useEffect(() => {
     try { const s = localStorage.getItem("ilwu23_member"); if(s) setMember(JSON.parse(s)); } catch{}
@@ -677,7 +687,7 @@ export default function App() {
   useEffect(() => {
     if (!member?.reg) return;
     setLoading(true); setError(null);
-    fetchAllCSVs(sheets)
+    fetchAllCSVs(getRelevantSheets(sheets))
       .then(map => { setAllSpins(map); setLoading(false); })
       .catch(() => { setError("Using cached data."); setLoading(false); });
   }, [member?.reg]);
@@ -744,7 +754,7 @@ export default function App() {
       setRefreshing(true);
       try {
         const [map, v, night, day] = await Promise.all([
-          fetchAllCSVs(sheets),
+          fetchAllCSVs(getRelevantSheets(sheets)),
           fetchVessels(),
           fetchDispatchBoard("1"),
           fetchDispatchBoard("2"),
@@ -761,7 +771,7 @@ export default function App() {
   if (!member) return <Onboarding onSave={saveMember} />;
 
   const resolvedRecords = {};
-  sheets.forEach(sh => { resolvedRecords[sh.id] = findRecord(sh.id); });
+  relevantSheets.forEach(sh => { resolvedRecords[sh.id] = findRecord(sh.id); });
 
   // Vessel stats
   const atBerth  = vessels.filter(v => v.status === "in-port").length;
@@ -815,7 +825,7 @@ export default function App() {
 
       <div style={{ padding:"14px 14px 64px" }}>
 
-        <WeekCarousel sheets={sheets} records={resolvedRecords} todayIdx={todayIdx} activeIdx={activeIdx} />
+        <WeekCarousel sheets={relevantSheets} records={resolvedRecords} todayIdx={todayIdx} />
 
         {/* NIGHT BOARD — live from ilwu23.com, refreshes every 60s */}
         <WorkBoard board={nightBoard} liveUrl="http://ilwu23.com/?screen=1" />

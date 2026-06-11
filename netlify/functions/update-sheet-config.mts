@@ -61,8 +61,8 @@ export default async function handler() {
           return;
         }
 
-        // Add new ID (keep last 4 weeks)
-        const updatedIds = [...existingIds, id].slice(-4);
+        // Keep only the 3 most recent IDs: last week (buffer) + current + next
+        const updatedIds = [...existingIds, id].slice(-3);
         const newContent = btoa(JSON.stringify({ sheetIds: updatedIds }, null, 2));
 
         // Compute next Saturday's date for the commit message label
