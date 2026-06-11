@@ -1,5 +1,7 @@
 import { useState, useEffect, useRef } from "react";
+import { BrowserRouter, Routes, Route } from "react-router-dom";
 import * as XLSX from "xlsx";
+import About from "./About.jsx";
 
 // ─── COLOUR TOKENS ────────────────────────────────────────────────────────────
 const C = {
@@ -662,7 +664,7 @@ function VesselBadge({ status }) {
 }
 
 // ─── MAIN ─────────────────────────────────────────────────────────────────────
-export default function App() {
+function DispatchApp() {
   const [sheets,   setSheets]   = useState(SHEETS_FALLBACK);
   const [member,   setMember]   = useState(null);
   const [allSpins, setAllSpins] = useState({});
@@ -816,6 +818,7 @@ export default function App() {
         <div style={{ display:"flex", alignItems:"center", gap:8 }}>
           {loading && <span style={{ fontSize:13, color:"rgba(255,255,255,0.5)" }}>↻</span>}
           {error   && <span style={{ fontSize:13, color:C.yellow }}>⚠</span>}
+          <a href="/about" style={{ fontSize:11, color:C.blue, fontFamily:"'DM Sans',sans-serif", fontWeight:600, textDecoration:"none" }}>About</a>
           <button onClick={resetMember} aria-label="Change registration number"
             style={{ background:C.blue, borderRadius:20, padding:"8px 16px", minHeight:36, fontSize:12, fontWeight:700, color:C.white, border:"none", letterSpacing:"0.3px" }}>
             Change #
@@ -908,8 +911,20 @@ export default function App() {
         fontFamily:"'DM Sans',sans-serif", padding:"16px 20px 8px",
         paddingBottom:"calc(8px + env(safe-area-inset-bottom))",
       }}>
-        This is an independent project. Not affiliated with ILWU or Local 23.
+        This is an independent project. Not affiliated with ILWU or Local 23.{" "}
+        <a href="/about" style={{ color:C.blue, textDecoration:"none", fontWeight:600 }}>About & Roadmap →</a>
       </div>
     </div>
+  );
+}
+
+export default function App() {
+  return (
+    <BrowserRouter>
+      <Routes>
+        <Route path="/" element={<DispatchApp />} />
+        <Route path="/about" element={<About />} />
+      </Routes>
+    </BrowserRouter>
   );
 }
