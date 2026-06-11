@@ -14,7 +14,8 @@ const C = {
 };
 
 // ─── SPIN SHEET DATA ──────────────────────────────────────────────────────────
-const SHEETS = [
+// Hardcoded fallback — also used as default until sheet-config.json loads.
+const SHEETS_FALLBACK = [
   {
     id: "1hnw6TCvT7z71hxFv8Fn2L2G08yAaBdegwRLiUttyug8",
     label: "May 30 – Jun 5",
@@ -25,17 +26,50 @@ const SHEETS = [
     label: "Jun 6 – Jun 12",
     startSat: new Date("2026-06-06"),
   },
+  {
+    id: "1jzZ5U4Sttt4Dfg01D9ipprT0usEL7GVZeW2IAto3sUU",
+    label: "Jun 13 – Jun 19",
+    startSat: new Date("2026-06-13"),
+  },
 ];
 
 const csvUrl = (id, tab) =>
   `https://docs.google.com/spreadsheets/d/${id}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(tab)}`;
 
-function getActiveSheetIdx() {
+// Takes the current sheets array so it works with dynamic config
+function getActiveSheetIdx(sheets) {
   const today = new Date(); today.setHours(0,0,0,0);
-  for (let i = SHEETS.length - 1; i >= 0; i--) {
-    if (today >= SHEETS[i].startSat) return i;
+  for (let i = sheets.length - 1; i >= 0; i--) {
+    if (today >= sheets[i].startSat) return i;
   }
   return 0;
+}
+
+// Loads sheet IDs from /sheet-config.json (written by the scheduled function)
+// and reconstructs the SHEETS array using the May 30 anchor date.
+async function loadSheetConfig() {
+  try {
+    const res = await fetch("/sheet-config.json");
+    if (!res.ok) throw new Error("config not found");
+    const data = await res.json();
+    const ids  = data.sheetIds || [];
+    if (!ids.length) throw new Error("empty config");
+
+    const ANCHOR_DATE = new Date("2026-05-30");
+    const ANCHOR_ID   = "1hnw6TCvT7z71hxFv8Fn2L2G08yAaBdegwRLiUttyug8";
+    const anchorIdx   = ids.indexOf(ANCHOR_ID);
+    const baseIdx     = anchorIdx >= 0 ? anchorIdx : 0;
+
+    return ids.map((id, i) => {
+      const weeksFromAnchor = i - baseIdx;
+      const startSat = new Date(ANCHOR_DATE.getTime() + weeksFromAnchor * 7 * 86400000);
+      const endFri   = new Date(startSat.getTime() + 6 * 86400000);
+      const fmt = d => d.toLocaleDateString("en-US", { month:"short", day:"numeric" });
+      return { id, label: `${fmt(startSat)} – ${fmt(endFri)}`, startSat };
+    });
+  } catch {
+    return null; // caller falls back to SHEETS_FALLBACK
+  }
 }
 
 const FALLBACK = {
@@ -46,6 +80,10 @@ const FALLBACK = {
   "1UVrSQ4Yz9s7Fy3R4riSce824vv0a3pYyMwC7M7EPvW4": [
     { reg:"230385", cls:"B", sat:182, sun:40,  mon:28,  tue:327, wed:326, thu:163, fri:218 },
     { reg:"61843",  cls:"A", sat:237, sun:306, mon:741, tue:849, wed:61,  thu:585, fri:821 },
+  ],
+  "1jzZ5U4Sttt4Dfg01D9ipprT0usEL7GVZeW2IAto3sUU": [
+    { reg:"230385", cls:"B", sat:9,   sun:250, mon:171, tue:318, wed:240, thu:157, fri:272 },
+    { reg:"61843",  cls:"A", sat:326, sun:424, mon:605, tue:400, wed:33,  thu:209, fri:236 },
   ],
 };
 
@@ -216,9 +254,10 @@ async function fetchTabsForSheet(sheetId, label) {
   return [...spinsAB, ...spinsC];
 }
 
-async function fetchAllCSVs() {
+// sheets defaults to SHEETS_FALLBACK so Onboarding can call without a param
+async function fetchAllCSVs(sheets = SHEETS_FALLBACK) {
   const results = await Promise.all(
-    SHEETS.map(sh =>
+    sheets.map(sh =>
       fetchTabsForSheet(sh.id, sh.label)
         .then(spins => ({ sheetId: sh.id, spins }))
         .catch(err => {
@@ -614,6 +653,7 @@ function VesselBadge({ status }) {
 
 // ─── MAIN ─────────────────────────────────────────────────────────────────────
 export default function App() {
+  const [sheets,   setSheets]   = useState(SHEETS_FALLBACK);
   const [member,   setMember]   = useState(null);
   const [allSpins, setAllSpins] = useState({});
   const [loading,  setLoading]  = useState(false);
@@ -623,16 +663,21 @@ export default function App() {
   const [nightBoard,  setNightBoard]  = useState(null);
   const [dayBoard,    setDayBoard]    = useState(null);
   const todayIdx  = getTodayIdx();
-  const activeIdx = getActiveSheetIdx();
+  const activeIdx = getActiveSheetIdx(sheets);
 
   useEffect(() => {
     try { const s = localStorage.getItem("ilwu23_member"); if(s) setMember(JSON.parse(s)); } catch{}
   }, []);
 
+  // Load dynamic sheet config (falls back to SHEETS_FALLBACK if unavailable)
+  useEffect(() => {
+    loadSheetConfig().then(loaded => { if (loaded) setSheets(loaded); });
+  }, []);
+
   useEffect(() => {
     if (!member?.reg) return;
     setLoading(true); setError(null);
-    fetchAllCSVs()
+    fetchAllCSVs(sheets)
       .then(map => { setAllSpins(map); setLoading(false); })
       .catch(() => { setError("Using cached data."); setLoading(false); });
   }, [member?.reg]);
@@ -699,7 +744,7 @@ export default function App() {
       setRefreshing(true);
       try {
         const [map, v, night, day] = await Promise.all([
-          fetchAllCSVs(),
+          fetchAllCSVs(sheets),
           fetchVessels(),
           fetchDispatchBoard("1"),
           fetchDispatchBoard("2"),
@@ -716,7 +761,7 @@ export default function App() {
   if (!member) return <Onboarding onSave={saveMember} />;
 
   const resolvedRecords = {};
-  SHEETS.forEach(sh => { resolvedRecords[sh.id] = findRecord(sh.id); });
+  sheets.forEach(sh => { resolvedRecords[sh.id] = findRecord(sh.id); });
 
   // Vessel stats
   const atBerth  = vessels.filter(v => v.status === "in-port").length;
@@ -770,7 +815,7 @@ export default function App() {
 
       <div style={{ padding:"14px 14px 64px" }}>
 
-        <WeekCarousel sheets={SHEETS} records={resolvedRecords} todayIdx={todayIdx} activeIdx={activeIdx} />
+        <WeekCarousel sheets={sheets} records={resolvedRecords} todayIdx={todayIdx} activeIdx={activeIdx} />
 
         {/* NIGHT BOARD — live from ilwu23.com, refreshes every 60s */}
         <WorkBoard board={nightBoard} liveUrl="http://ilwu23.com/?screen=1" />
