@@ -909,6 +909,10 @@ function DispatchApp() {
               ⚠ Cached
             </span>
           )}
+          <a href="https://ilwu.pepdekker.com" target="_blank" rel="noopener noreferrer"
+            style={{ fontSize:11, color:C.blue, fontFamily:"'DM Sans',sans-serif", fontWeight:600, textDecoration:"none" }}>
+            Union Site ↗
+          </a>
           <a href="/about" style={{ fontSize:11, color:C.blue, fontFamily:"'DM Sans',sans-serif", fontWeight:600, textDecoration:"none" }}>About</a>
           <button onClick={resetMember} aria-label="Change registration number"
             style={{ background:C.blue, borderRadius:20, padding:"8px 16px", minHeight:36, fontSize:12, fontWeight:700, color:C.white, border:"none", letterSpacing:"0.3px" }}>
@@ -926,6 +930,36 @@ function DispatchApp() {
 
         {/* DAY BOARD — live from ilwu23.com, refreshes every 60s */}
         <WorkBoard board={dayBoard} liveUrl="http://ilwu23.com/?screen=2" />
+
+        {/* WORK BOARD LINKS — mobile-friendly union site board */}
+        <div style={{ marginBottom:16 }}>
+          {[
+            { label:"Night Work Board", sub:"Mobile-friendly · Live dispatch", url:"https://ilwu.pepdekker.com/board?shift=night", badge:"NIGHT", badgeColor:C.navy },
+            { label:"Day Work Board",   sub:"Mobile-friendly · Live dispatch", url:"https://ilwu.pepdekker.com/board?shift=day",   badge:"DAY",   badgeColor:C.blue },
+          ].map(({ label, sub, url, badge, badgeColor }) => (
+            <a key={label} href={url} target="_blank" rel="noopener noreferrer"
+              onClick={() => window.posthog?.capture('external_link_clicked', { label, url })}
+              style={{ display:"block", background:C.white, border:`1.5px solid ${C.border}`,
+                borderLeft:`4px solid ${badgeColor}`, borderRadius:12, padding:"14px 16px",
+                textDecoration:"none", marginBottom:8 }}>
+              <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center" }}>
+                <div>
+                  <div style={{ fontWeight:700, fontSize:14, color:C.navy }}>{label}</div>
+                  <div style={{ fontSize:11, color:C.muted, marginTop:2 }}>{sub}</div>
+                </div>
+                <div style={{ fontFamily:"'Bebas Neue',sans-serif", fontSize:13,
+                  background:badgeColor, color:C.white, borderRadius:6,
+                  padding:"3px 10px", letterSpacing:1 }}>{badge}</div>
+              </div>
+            </a>
+          ))}
+          <div style={{ textAlign:"center", marginTop:4 }}>
+            <a href="http://ilwu23.com" target="_blank" rel="noopener noreferrer"
+              style={{ fontSize:11, color:C.muted, textDecoration:"none" }}>
+              Official board ↗
+            </a>
+          </div>
+        </div>
 
         {/* VESSELS */}
         <div style={{ marginBottom:12 }}>
