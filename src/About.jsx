@@ -80,7 +80,7 @@ function Hero() {
           lineHeight: 1,
           margin: 0,
         }}>
-          BUILT FOR THE HALL.<br />NOT THE CORNER OFFICE.
+          YOUR SPINS.<br />YOUR BOARD.<br />ONE SCREEN.
         </h1>
 
         <div style={{ width: 80, height: 3, background: C.yellow, margin: "24px 0" }} aria-hidden="true" />
