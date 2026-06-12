@@ -901,16 +901,8 @@ function DispatchApp() {
 
         {/* Right: live status · union link · reg button */}
         <div style={{ display:"flex", alignItems:"center", gap:10 }}>
-          {loading ? (
-            <span role="status" aria-label="Fetching data">
-              <span aria-hidden="true" style={{ width:8, height:8, borderRadius:"50%", background:"rgba(255,255,255,0.25)", display:"inline-block" }} />
-            </span>
-          ) : error ? (
+          {error && (
             <span role="status" aria-label="Using cached data" style={{ fontSize:10, color:"#F59E0B", fontFamily:"'DM Mono',monospace" }}>⚠</span>
-          ) : (
-            <span role="status" aria-label="Live data">
-              <span aria-hidden="true" style={{ width:8, height:8, borderRadius:"50%", background:"#22c55e", display:"inline-block" }} />
-            </span>
           )}
           <a href="https://ilwu.pepdekker.com" target="_blank" rel="noopener noreferrer"
             style={{ fontSize:11, color:"rgba(255,255,255,0.75)", fontFamily:"'DM Sans',sans-serif", fontWeight:600, textDecoration:"none", padding:"8px 0" }}>
