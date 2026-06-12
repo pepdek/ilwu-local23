@@ -5,14 +5,15 @@ import About from "./About.jsx";
 
 // ─── COLOUR TOKENS ────────────────────────────────────────────────────────────
 const C = {
-  navy:   "#00305b",
-  blue:   "#377dbd",
-  cream:  "#F7F6F2",
-  yellow: "#fff216",
-  white:  "#ffffff",
-  dark:   "#0F0F0F",
-  muted:  "#9CA3AF",
-  border: "#E8E5DC",
+  navy:      "#00305b",
+  blue:      "#377dbd",
+  cream:     "#F7F6F2",
+  yellow:    "#fff216",
+  white:     "#ffffff",
+  dark:      "#0F0F0F",
+  muted:     "#9CA3AF",     // decorative only — fails WCAG AA on light bg
+  mutedText: "#6B7280",     // 4.6 : 1 on white — use for readable secondary text
+  border:    "#E8E5DC",
 };
 
 // ─── SPIN SHEET DATA ──────────────────────────────────────────────────────────
@@ -597,7 +598,7 @@ function JobRow({ job, isLast, isHouse }) {
       <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", gap:8 }}>
         <div style={{ minWidth:0 }}>
           <div style={{ fontWeight:600, fontSize:13, color: isHouse ? "#555" : C.dark }}>{job.vessel}</div>
-          <div style={{ fontSize:11, color:C.muted, marginTop:1 }}>{job.terminal} · {job.start}</div>
+          <div style={{ fontSize:12, color:C.mutedText, marginTop:1 }}>{job.terminal} · {job.start}</div>
         </div>
         {job.details.length > 0 && (
           <div style={{ display:"flex", gap:4, flexWrap:"wrap", justifyContent:"flex-end", flexShrink:0, maxWidth:"55%" }}>
@@ -639,15 +640,15 @@ function WorkBoard({ board, liveUrl }) {
             </div>
             <div style={{ display:"flex", alignItems:"center", gap:5, marginTop:3 }}>
               {board?.date && (
-                <span style={{ fontSize:11, color:C.muted, fontFamily:"'DM Mono',monospace" }}>{board.date}</span>
+                <span style={{ fontSize:12, color:C.mutedText, fontFamily:"'DM Mono',monospace" }}>{board.date}</span>
               )}
-              <span style={{ width:7, height:7, borderRadius:"50%", background:"#22c55e", display:"inline-block" }} />
+              <span aria-hidden="true" style={{ width:7, height:7, borderRadius:"50%", background:"#22c55e", display:"inline-block" }} />
               <span style={{ fontSize:10, color:"#22c55e", fontWeight:700, letterSpacing:"0.5px", fontFamily:"'DM Sans',sans-serif" }}>LIVE</span>
             </div>
           </div>
         </div>
         <a href={liveUrl} target="_blank" rel="noopener noreferrer"
-          style={{ fontSize:12, color:C.blue, fontWeight:600, marginTop:4 }}
+          style={{ fontSize:12, color:C.blue, fontWeight:600, padding:"8px 0", display:"inline-block" }}
           onClick={() => window.posthog?.capture('external_link_clicked', {
             label: isNight ? 'Night Work Board' : 'Day Work Board', url: liveUrl,
           })}>
@@ -658,11 +659,11 @@ function WorkBoard({ board, liveUrl }) {
       {/* ── Card ── */}
       <div style={{ background:C.white, borderRadius:14, border:`1.5px solid ${C.border}`, borderLeft:`3px solid ${accentColor}`, overflow:"hidden" }}>
         {!board ? (
-          <div style={{ padding:"18px 16px", textAlign:"center", color:C.muted, fontSize:13 }}>
+          <div style={{ padding:"18px 16px", textAlign:"center", color:C.mutedText, fontSize:13 }}>
             Loading dispatch board…
           </div>
         ) : !hasVessel && !hasHouse ? (
-          <div style={{ padding:"18px 16px", textAlign:"center", color:C.muted, fontSize:13 }}>
+          <div style={{ padding:"18px 16px", textAlign:"center", color:C.mutedText, fontSize:13 }}>
             No jobs posted yet
           </div>
         ) : (
@@ -884,39 +885,55 @@ function DispatchApp() {
       )}
 
       {/* TOP BAR */}
-      <div style={{ background:C.navy, padding:"12px 18px", display:"flex", justifyContent:"space-between", alignItems:"center", position:"sticky", top:0, zIndex:10 }}>
-        <div style={{ display:"flex", alignItems:"center", gap:11 }}>
-          <ILWUMark size={36} />
+      <div style={{ background:C.navy, padding:"10px 16px", display:"flex", justifyContent:"space-between", alignItems:"center", position:"sticky", top:0, zIndex:10 }}>
+        {/* Left: mark + wordmark */}
+        <div style={{ display:"flex", alignItems:"center", gap:10 }}>
+          <ILWUMark size={34} />
           <div>
-            <div style={{ fontFamily:"'Bebas Neue',sans-serif", fontSize:14, color:C.white, letterSpacing:"2px", lineHeight:1.15 }}>ILWU LOCAL 23</div>
-            <div style={{ fontFamily:"'Bebas Neue',sans-serif", fontSize:12, color:C.yellow, letterSpacing:"3px", lineHeight:1.15 }}>DISPATCH</div>
-            <div style={{ fontFamily:"'DM Mono',monospace", fontSize:11, color:C.blue, marginTop:2 }}>#{member.reg} · {member.cls} CLASS</div>
+            <div style={{ fontFamily:"'Bebas Neue',sans-serif", fontSize:19, color:C.white, letterSpacing:"1px", lineHeight:1 }}>
+              Dispatch App
+            </div>
+            <div style={{ fontFamily:"'DM Mono',monospace", fontSize:10, color:"rgba(255,255,255,0.55)", letterSpacing:"0.5px", marginTop:3 }}>
+              ILWU LOCAL 23
+            </div>
           </div>
         </div>
-        <div style={{ display:"flex", alignItems:"center", gap:8 }}>
-          {lastFetched && !loading && (
-            <span style={{ fontSize:11, color:"#059669", fontFamily:"'DM Mono',monospace" }}>
-              ● {timeSince(lastFetched)}
+
+        {/* Right: live status · union link · reg button */}
+        <div style={{ display:"flex", alignItems:"center", gap:10 }}>
+          {loading ? (
+            <span role="status" aria-label="Fetching data">
+              <span aria-hidden="true" style={{ width:8, height:8, borderRadius:"50%", background:"rgba(255,255,255,0.25)", display:"inline-block" }} />
             </span>
-          )}
-          {loading && (
-            <span style={{ fontSize:11, color:C.muted, fontFamily:"'DM Mono',monospace" }}>
-              ● Fetching...
-            </span>
-          )}
-          {error && (
-            <span style={{ fontSize:11, color:"#D97706", fontFamily:"'DM Mono',monospace" }}>
-              ⚠ Cached
+          ) : error ? (
+            <span role="status" aria-label="Using cached data" style={{ fontSize:10, color:"#F59E0B", fontFamily:"'DM Mono',monospace" }}>⚠</span>
+          ) : (
+            <span role="status" aria-label="Live data" style={{ display:"inline-flex", alignItems:"center", gap:4 }}>
+              <span aria-hidden="true" style={{ width:7, height:7, borderRadius:"50%", background:"#22c55e", flexShrink:0 }} />
+              <span style={{ fontSize:10, color:"#22c55e", fontWeight:700, fontFamily:"'DM Sans',sans-serif", letterSpacing:"0.5px" }}>LIVE</span>
             </span>
           )}
           <a href="https://ilwu.pepdekker.com" target="_blank" rel="noopener noreferrer"
-            style={{ fontSize:11, color:C.blue, fontFamily:"'DM Sans',sans-serif", fontWeight:600, textDecoration:"none" }}>
-            Union Site ↗
+            style={{ fontSize:11, color:"rgba(255,255,255,0.75)", fontFamily:"'DM Sans',sans-serif", fontWeight:600, textDecoration:"none", padding:"8px 0" }}>
+            Union ↗
           </a>
-          <a href="/about" style={{ fontSize:11, color:C.blue, fontFamily:"'DM Sans',sans-serif", fontWeight:600, textDecoration:"none" }}>About</a>
-          <button onClick={resetMember} aria-label="Change registration number"
-            style={{ background:C.blue, borderRadius:20, padding:"8px 16px", minHeight:36, fontSize:12, fontWeight:700, color:C.white, border:"none", letterSpacing:"0.3px" }}>
-            Change #
+          <button
+            onClick={resetMember}
+            aria-label={`Reg #${member.reg} — tap to change`}
+            style={{
+              background:"rgba(255,255,255,0.1)",
+              border:"1px solid rgba(255,255,255,0.2)",
+              borderRadius:20,
+              padding:"7px 13px",
+              minHeight:36,
+              fontSize:12,
+              fontFamily:"'DM Mono',monospace",
+              fontWeight:600,
+              color:C.white,
+              letterSpacing:"0.5px",
+              cursor:"pointer",
+            }}>
+            #{member.reg}
           </button>
         </div>
       </div>
@@ -945,7 +962,7 @@ function DispatchApp() {
               <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center" }}>
                 <div>
                   <div style={{ fontWeight:700, fontSize:14, color:C.navy }}>{label}</div>
-                  <div style={{ fontSize:11, color:C.muted, marginTop:2 }}>{sub}</div>
+                  <div style={{ fontSize:12, color:C.mutedText, marginTop:2 }}>{sub}</div>
                 </div>
                 <div style={{ fontFamily:"'Bebas Neue',sans-serif", fontSize:13,
                   background:badgeColor, color:C.white, borderRadius:6,
@@ -955,7 +972,7 @@ function DispatchApp() {
           ))}
           <div style={{ textAlign:"center", marginTop:4 }}>
             <a href="http://ilwu23.com" target="_blank" rel="noopener noreferrer"
-              style={{ fontSize:11, color:C.muted, textDecoration:"none" }}>
+              style={{ fontSize:12, color:C.mutedText, textDecoration:"none", display:"inline-block", padding:"8px 0" }}>
               Official board ↗
             </a>
           </div>
@@ -971,14 +988,14 @@ function DispatchApp() {
                   Vessels · Tacoma
                 </div>
                 <div style={{ display:"flex", alignItems:"center", gap:5, marginTop:3 }}>
-                  <span style={{ width:7, height:7, borderRadius:"50%", background:"#22c55e", display:"inline-block" }} />
+                  <span aria-hidden="true" style={{ width:7, height:7, borderRadius:"50%", background:"#22c55e", display:"inline-block" }} />
                   <span style={{ fontSize:10, color:"#22c55e", fontWeight:700, letterSpacing:"0.5px", fontFamily:"'DM Sans',sans-serif" }}>LIVE</span>
                 </div>
               </div>
             </div>
             <a href="https://www.nwseaportalliance.com/cargo-operations/vessel-schedules-and-calendar"
               target="_blank" rel="noopener noreferrer"
-              style={{ fontSize:12, color:C.blue, fontWeight:600, marginTop:4 }}
+              style={{ fontSize:12, color:C.blue, fontWeight:600, padding:"8px 0", display:"inline-block" }}
               onClick={() => window.posthog?.capture('external_link_clicked', {
                 label: 'Full Vessel Schedule', url: 'https://www.nwseaportalliance.com/cargo-operations/vessel-schedules-and-calendar',
               })}>Full schedule ↗</a>
@@ -1002,12 +1019,12 @@ function DispatchApp() {
 
           {/* Vessel list */}
           {vesselError ? (
-            <div style={{ background:C.white, borderRadius:14, border:`1.5px solid ${C.border}`, padding:"16px", fontSize:13, color:C.muted, textAlign:"center" }}>
+            <div style={{ background:C.white, borderRadius:14, border:`1.5px solid ${C.border}`, padding:"16px", fontSize:13, color:C.mutedText, textAlign:"center" }}>
               Vessel schedule unavailable ·{" "}
               <a href="https://www.nwseaportalliance.com/cargo-operations/vessel-schedules-and-calendar" target="_blank" rel="noopener noreferrer" style={{ color:C.blue, fontWeight:600 }}>Full schedule ↗</a>
             </div>
           ) : vessels.length === 0 ? (
-            <div style={{ background:C.white, borderRadius:14, border:`1.5px solid ${C.border}`, padding:"16px", fontSize:13, color:C.muted, textAlign:"center" }}>
+            <div style={{ background:C.white, borderRadius:14, border:`1.5px solid ${C.border}`, padding:"16px", fontSize:13, color:C.mutedText, textAlign:"center" }}>
               Loading vessel schedule...
             </div>
           ) : (
@@ -1021,14 +1038,14 @@ function DispatchApp() {
                         href={`https://www.vesselfinder.com/?name=${encodeURIComponent(v.name)}`}
                         target="_blank" rel="noopener noreferrer"
                         onClick={() => window.posthog?.capture('ship_tracker_clicked', { vessel: v.name })}
-                        style={{ fontSize:10, color:C.blue, fontFamily:"'DM Mono',monospace", fontWeight:600, textDecoration:"none", marginLeft:8, whiteSpace:"nowrap" }}>
+                        style={{ fontSize:12, color:C.blue, fontFamily:"'DM Mono',monospace", fontWeight:600, textDecoration:"none", marginLeft:8, whiteSpace:"nowrap", padding:"6px 0", display:"inline-block" }}>
                         ⚓ TRACK
                       </a>
                     </div>
-                    <div style={{ fontSize:12, color:C.muted, marginTop:1 }}>{v.terminal} · {v.cargo}</div>
+                    <div style={{ fontSize:12, color:C.mutedText, marginTop:1 }}>{v.terminal} · {v.cargo}</div>
                   </div>
                   <div style={{ textAlign:"right" }}>
-                    <div style={{ fontSize:11, color:C.muted, fontFamily:"'DM Mono',monospace", marginBottom:4 }}>ETA {v.eta}</div>
+                    <div style={{ fontSize:12, color:C.mutedText, fontFamily:"'DM Mono',monospace", marginBottom:4 }}>ETA {v.eta}</div>
                     <VesselBadge status={v.status} />
                   </div>
                 </div>
@@ -1041,12 +1058,12 @@ function DispatchApp() {
 
       {/* DISCLAIMER */}
       <div style={{
-        textAlign:"center", fontSize:11, color:C.muted,
+        textAlign:"center", fontSize:12, color:C.mutedText,
         fontFamily:"'DM Sans',sans-serif", padding:"16px 20px 8px",
         paddingBottom:"calc(8px + env(safe-area-inset-bottom))",
       }}>
         This is an independent project. Not affiliated with ILWU or Local 23.{" "}
-        <a href="/about" style={{ color:C.blue, textDecoration:"none", fontWeight:600 }}>About & Roadmap →</a>
+        <a href="/about" style={{ color:C.blue, textDecoration:"none", fontWeight:600, display:"inline-block", padding:"4px 0" }}>About & Roadmap →</a>
       </div>
     </div>
   );
