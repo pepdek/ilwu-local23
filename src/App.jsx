@@ -908,9 +908,8 @@ function DispatchApp() {
           ) : error ? (
             <span role="status" aria-label="Using cached data" style={{ fontSize:10, color:"#F59E0B", fontFamily:"'DM Mono',monospace" }}>⚠</span>
           ) : (
-            <span role="status" aria-label="Live data" style={{ display:"inline-flex", alignItems:"center", gap:4 }}>
-              <span aria-hidden="true" style={{ width:7, height:7, borderRadius:"50%", background:"#22c55e", flexShrink:0 }} />
-              <span style={{ fontSize:10, color:"#22c55e", fontWeight:700, fontFamily:"'DM Sans',sans-serif", letterSpacing:"0.5px" }}>LIVE</span>
+            <span role="status" aria-label="Live data">
+              <span aria-hidden="true" style={{ width:8, height:8, borderRadius:"50%", background:"#22c55e", display:"inline-block" }} />
             </span>
           )}
           <a href="https://ilwu.pepdekker.com" target="_blank" rel="noopener noreferrer"
