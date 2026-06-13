@@ -370,75 +370,93 @@ function Onboarding({ onSave }) {
 
   const active = status === "found";
   return (
-    <div style={{ minHeight:"100vh", background:C.cream, display:"flex", alignItems:"center", justifyContent:"center", padding:20, fontFamily:"'DM Sans',sans-serif" }}>
-      <div style={{ background:C.white, borderRadius:20, width:"100%", maxWidth:400, overflow:"hidden", boxShadow:"0 4px 24px rgba(0,0,0,0.10)" }}>
-        <div style={{ height:6, background:C.navy }} />
-        <div style={{ padding:"32px 28px 36px" }}>
-          <div style={{ display:"flex", alignItems:"center", gap:12, marginBottom:32 }}>
-            <ILWUMark size={40} />
-            <div>
-              <div style={{ fontFamily:"'Bebas Neue',sans-serif", fontSize:15, color:C.navy, letterSpacing:"2px", lineHeight:1.1 }}>ILWU LOCAL 23</div>
-              <div style={{ fontFamily:"'Bebas Neue',sans-serif", fontSize:12, color:C.blue, letterSpacing:"3px", lineHeight:1.1 }}>DISPATCH</div>
+    <div style={{ minHeight:"100vh", display:"flex", flexDirection:"column", fontFamily:"'DM Sans',sans-serif" }}>
+
+      {/* ── TOP ZONE — navy ── */}
+      <div style={{ background:C.navy, padding:"40px 24px 32px" }}>
+        <div style={{ display:"flex", alignItems:"center", gap:12, marginBottom:0 }}>
+          <ILWUMark size={36} />
+          <div>
+            <div style={{ fontFamily:"'Bebas Neue',sans-serif", fontSize:32, color:C.white, letterSpacing:"1.5px", lineHeight:1 }}>
+              Dispatch App
+            </div>
+            <div style={{ fontFamily:"'DM Mono',monospace", fontSize:11, color:"rgba(255,255,255,0.5)", marginTop:4, letterSpacing:"0.5px" }}>
+              ILWU LOCAL 23 · PORT OF TACOMA
             </div>
           </div>
-          <div style={{ fontSize:22, fontWeight:700, color:C.dark, lineHeight:1.25, marginBottom:8 }}>What's your registration number?</div>
-          <div style={{ fontSize:15, color:C.muted, marginBottom:28 }}>Enter it once. We'll remember it.</div>
-          <label style={{ fontSize:12, fontWeight:600, color:"#555", display:"block", marginBottom:8 }}>Registration #</label>
-          <input
-            type="tel" inputMode="numeric" placeholder="e.g. 61225"
-            value={val} maxLength={8}
-            onChange={e => { setVal(e.target.value); lookup(e.target.value); }}
-            style={{
-              width:"100%", boxSizing:"border-box", WebkitAppearance:"none", appearance:"none",
-              border:"1.5px solid",
-              borderColor: status==="found" ? C.blue : status==="notfound" ? "#DC2626" : C.border,
-              borderRadius:12, padding:"16px", fontSize:26, fontFamily:"'DM Mono',monospace",
-              fontWeight:600, color:C.dark, letterSpacing:"4px", outline:"none",
-              textAlign:"center", transition:"border-color 0.2s", marginBottom:12, background:C.white,
-            }}
-          />
-          <div style={{ minHeight:60 }}>
-            {status==="searching" && (
-              <div style={{ fontSize:13, color:C.muted, textAlign:"center", padding:"16px 0" }}>Looking up...</div>
-            )}
-            {status==="found" && found && (
-              <div style={{ display:"flex", alignItems:"center", gap:10, background:"#EFF6FF", border:`1px solid ${C.blue}`, borderRadius:10, padding:"12px 16px" }}>
-                <span style={{ fontSize:20 }}>✓</span>
-                <div style={{ flex:1 }}>
-                  <div style={{ fontSize:13, fontWeight:700, color:C.blue }}>Found — {found.cls} Class</div>
-                  <div style={{ fontSize:11, color:C.muted }}>Class auto-detected from sheet</div>
-                </div>
-                <div style={{ fontFamily:"'Bebas Neue',sans-serif", fontSize:32, color:C.blue, lineHeight:1 }}>{found.cls}</div>
-              </div>
-            )}
-            {status==="notfound" && (
-              <div style={{ background:"#FFF5F5", border:"1px solid #FECACA", borderRadius:10, padding:"12px 16px" }}>
-                <div style={{ fontSize:13, fontWeight:700, color:"#DC2626" }}>Not found in current sheets</div>
-                <div style={{ fontSize:11, color:C.muted, marginTop:3 }}>
-                  B/Casual tabs may not be loaded yet.{" "}
-                  <a href="https://www.ilwulocal23.org" target="_blank" rel="noopener noreferrer" style={{ color:C.blue, fontWeight:600 }}>Verify at ilwulocal23.org ↗</a>
-                </div>
-              </div>
-            )}
-          </div>
-          <button
-            disabled={!active}
-            onClick={() => {
-              if (!found) return;
-              window.posthog?.capture('member_onboarded', { reg_number: found.reg, cls: found.cls });
-              onSave({ reg: found.reg, cls: found.cls }, spinsCache);
-            }}
-            aria-label="Get started"
-            style={{
-              width:"100%", background: active ? C.navy : C.border, color: active ? C.yellow : C.muted,
-              borderRadius:12, padding:"17px", fontSize:16, fontFamily:"'Bebas Neue',sans-serif",
-              letterSpacing:"1px", cursor: active ? "pointer" : "default", border:"none", marginTop:16,
-              transition:"background 0.2s, color 0.2s",
-            }}>
-            Check My Spins →
-          </button>
-          <div style={{ fontSize:12, color:C.muted, textAlign:"center", marginTop:14 }}>Saved to your device only. No account needed.</div>
         </div>
+        <div style={{ width:40, height:3, background:C.yellow, margin:"20px 0 16px" }} aria-hidden="true" />
+        <div style={{ fontSize:16, color:C.blue, fontFamily:"'DM Sans',sans-serif", fontWeight:500, lineHeight:1.4 }}>
+          Your spins. Your board. One tap.
+        </div>
+      </div>
+
+      {/* ── BOTTOM ZONE — cream ── */}
+      <div style={{ flex:1, background:C.cream, padding:"28px 24px 36px" }}>
+
+        {/* Privacy note first — addresses hesitation before the input */}
+        <div style={{ fontSize:12, color:"#6B7280", marginBottom:20 }}>
+          No account needed — stays on your device.
+        </div>
+
+        <label style={{ fontSize:12, fontWeight:600, color:"#555", display:"block", marginBottom:8 }}>Registration #</label>
+        <input
+          type="tel" inputMode="numeric" placeholder="e.g. 61225"
+          value={val} maxLength={8}
+          onChange={e => { setVal(e.target.value); lookup(e.target.value); }}
+          style={{
+            width:"100%", boxSizing:"border-box", WebkitAppearance:"none", appearance:"none",
+            border:"1.5px solid",
+            borderColor: status==="found" ? C.blue : status==="notfound" ? "#DC2626" : C.border,
+            borderRadius:12, padding:"16px", fontSize:26, fontFamily:"'DM Mono',monospace",
+            fontWeight:600, color:C.dark, letterSpacing:"4px", outline:"none",
+            textAlign:"center", transition:"border-color 0.2s", marginBottom:12, background:C.white,
+          }}
+        />
+
+        {/* Status feedback — no fixed height, collapses when empty */}
+        <div style={{ minHeight:0 }}>
+          {status==="searching" && (
+            <div style={{ fontSize:13, color:C.muted, textAlign:"center", padding:"12px 0" }}>Looking up...</div>
+          )}
+          {status==="found" && found && (
+            <div style={{ display:"flex", alignItems:"center", gap:10, background:"#EFF6FF", border:`1px solid ${C.blue}`, borderRadius:10, padding:"12px 16px", marginBottom:4 }}>
+              <span style={{ fontSize:20 }}>✓</span>
+              <div style={{ flex:1 }}>
+                <div style={{ fontSize:13, fontWeight:700, color:C.blue }}>Found — {found.cls} Class</div>
+                <div style={{ fontSize:11, color:C.muted }}>Class auto-detected from sheet</div>
+              </div>
+              <div style={{ fontFamily:"'Bebas Neue',sans-serif", fontSize:32, color:C.blue, lineHeight:1 }}>{found.cls}</div>
+            </div>
+          )}
+          {status==="notfound" && (
+            <div style={{ background:"#FFF5F5", border:"1px solid #FECACA", borderRadius:10, padding:"12px 16px", marginBottom:4 }}>
+              <div style={{ fontSize:13, fontWeight:700, color:"#DC2626" }}>Not found in current sheets</div>
+              <div style={{ fontSize:11, color:C.muted, marginTop:3 }}>
+                B/Casual tabs may not be loaded yet.{" "}
+                <a href="https://ilwu.pepdekker.com" target="_blank" rel="noopener noreferrer" style={{ color:C.blue, fontWeight:600 }}>Check the union site ↗</a>
+              </div>
+            </div>
+          )}
+        </div>
+
+        <button
+          disabled={!active}
+          onClick={() => {
+            if (!found) return;
+            window.posthog?.capture('member_onboarded', { reg_number: found.reg, cls: found.cls });
+            onSave({ reg: found.reg, cls: found.cls }, spinsCache);
+          }}
+          aria-label="Get started"
+          style={{
+            width:"100%", background: active ? C.navy : C.border, color: active ? C.yellow : C.muted,
+            borderRadius:12, padding:"17px", fontSize:16, fontFamily:"'Bebas Neue',sans-serif",
+            letterSpacing:"1px", cursor: active ? "pointer" : "default", border:"none", marginTop:12,
+            transition:"background 0.2s, color 0.2s",
+          }}>
+          Check My Spins →
+        </button>
+
       </div>
     </div>
   );
