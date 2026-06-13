@@ -161,8 +161,9 @@ async function fetchVessels() {
         status,
       };
     })
+    .filter(v => v.status !== 'departed')
     .sort((a, b) => a.etaDate - b.etaDate)
-    .slice(0, 10);
+    .slice(0, 6);
 }
 
 // ─── DISPATCH BOARD FETCH ────────────────────────────────────────────────────
@@ -195,8 +196,17 @@ function parseDispatchHTML(html) {
       rows.push({
         vessel:   row[0],
         terminal: row[1],
-        start:    row[11],
-        details:  row.slice(2, 11).filter(c => c),
+        // Named fields so JobRow can render labeled badges
+        units:    row[2]  || '',   // e.g. "2-BACK", "4-NEW"
+        cranes:   row[3]  || '',
+        xmen:     row[4]  || '',
+        skxmen:   row[5]  || '',
+        pd:       row[6]  || '',
+        lasher:   row[7]  || '',
+        bus:      row[8]  || '',
+        start:    row[11] || '',
+        // Flat array kept for house work rendering
+        details:  row.slice(2, 11).filter(c => c && c !== '0' && c !== 'update'),
       });
     }
     return rows;
@@ -587,8 +597,40 @@ function WeekCarousel({ sheets, records, todayIdx }) {
 }
 
 // ─── WORK BOARD ───────────────────────────────────────────────────────────────
-// Shared row renderer used for both vessel and house entries
+function isValidCell(v) {
+  return v && v !== '0' && v !== 'update';
+}
+
+const ANNOTATION_DAYS = /^(SUNDAY|MONDAY|TUESDAY|WEDNESDAY|THURSDAY|FRIDAY|SATURDAY)$/i;
+function isAnnotation(job) {
+  return ANNOTATION_DAYS.test(job.terminal?.trim()) || job.vessel?.trim().startsWith('NO ');
+}
+
+// Compact labeled badge for the inline dispatch board
+function DispatchBadge({ label, value, bg, color }) {
+  return (
+    <span style={{ background:bg, borderRadius:5, padding:"3px 7px", fontWeight:600,
+      whiteSpace:"nowrap", display:"inline-flex", alignItems:"center", gap:3, flexShrink:0 }}>
+      {label && (
+        <span style={{ fontSize:8, fontWeight:700, color, textTransform:"uppercase",
+          letterSpacing:"0.5px" }}>{label}</span>
+      )}
+      <span style={{ fontSize:10, fontWeight:700, color }}>{value}</span>
+    </span>
+  );
+}
+
 function JobRow({ job, isLast, isHouse }) {
+  // Dispatcher annotations (e.g. "NO SCRAP, REPICK SUNDAY") — not real vessels
+  if (!isHouse && isAnnotation(job)) {
+    return (
+      <div style={{ fontSize:12, color:C.muted, fontStyle:"italic",
+        padding:"6px 16px", borderTop:"1px solid #F0EDE4" }}>
+        {job.vessel}{job.terminal ? ` — ${job.terminal}` : ''}
+      </div>
+    );
+  }
+
   return (
     <div style={{
       padding:"11px 16px",
@@ -598,19 +640,32 @@ function JobRow({ job, isLast, isHouse }) {
       <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", gap:8 }}>
         <div style={{ minWidth:0 }}>
           <div style={{ fontWeight:600, fontSize:13, color: isHouse ? "#555" : C.dark }}>{job.vessel}</div>
-          <div style={{ fontSize:12, color:C.mutedText, marginTop:1 }}>{job.terminal} · {job.start}</div>
-        </div>
-        {job.details.length > 0 && (
-          <div style={{ display:"flex", gap:4, flexWrap:"wrap", justifyContent:"flex-end", flexShrink:0, maxWidth:"55%" }}>
-            {job.details.slice(0, 3).map((d, di) => (
-              <span key={di} style={{
-                fontSize:10, borderRadius:5, padding:"3px 7px", fontWeight:600, whiteSpace:"nowrap",
-                background: isHouse ? C.border : C.cream,
-                color: isHouse ? "#555" : C.navy,
-              }}>{d}</span>
-            ))}
+          <div style={{ fontSize:12, color:C.mutedText, marginTop:1 }}>
+            {[job.terminal, job.start].filter(Boolean).join(' · ')}
           </div>
-        )}
+        </div>
+        <div style={{ display:"flex", gap:4, flexWrap:"wrap", justifyContent:"flex-end", flexShrink:0, maxWidth:"58%" }}>
+          {isHouse ? (
+            // House work: flat unlabeled chips (columns have no fixed semantic)
+            job.details.map((d, di) => (
+              <span key={di} style={{
+                fontSize:10, borderRadius:5, padding:"3px 7px", fontWeight:600,
+                whiteSpace:"nowrap", background:C.border, color:"#555",
+              }}>{d}</span>
+            ))
+          ) : (
+            // Vessel work: labeled badges by fixed column position
+            <>
+              {isValidCell(job.units)  && <DispatchBadge label=""     value={job.units}  bg="#374151" color="#fff"    />}
+              {isValidCell(job.cranes) && <DispatchBadge label="CR"   value={job.cranes} bg="#EFF6FF" color="#1D4ED8" />}
+              {isValidCell(job.xmen)   && <DispatchBadge label="X"    value={job.xmen}   bg="#ECFDF5" color="#059669" />}
+              {isValidCell(job.skxmen) && <DispatchBadge label="SK"   value={job.skxmen} bg="#ECFDF5" color="#059669" />}
+              {isValidCell(job.pd)     && <DispatchBadge label="PD"   value={job.pd}     bg="#FFFBEB" color="#D97706" />}
+              {isValidCell(job.lasher) && <DispatchBadge label="LASH" value={job.lasher} bg="#F5F3FF" color="#7C3AED" />}
+              {isValidCell(job.bus)    && <DispatchBadge label="BUS"  value={job.bus}    bg="#0891B2" color="#fff"    />}
+            </>
+          )}
+        </div>
       </div>
     </div>
   );
@@ -702,6 +757,16 @@ function WorkBoard({ board, liveUrl }) {
             )}
           </>
         )}
+      </div>
+
+      {/* Official source fallback */}
+      <div style={{ textAlign:"center", marginTop:6 }}>
+        <a href={`http://ilwu23.com/?screen=${isNight ? '1' : '2'}`}
+          target="_blank" rel="noopener noreferrer"
+          style={{ fontSize:11, color:C.mutedText, textDecoration:"none",
+            display:"inline-block", padding:"4px 0" }}>
+          Official board ↗
+        </a>
       </div>
     </div>
   );
@@ -933,41 +998,11 @@ function DispatchApp() {
 
         <WeekCarousel sheets={relevantSheets} records={resolvedRecords} todayIdx={todayIdx} />
 
-        {/* NIGHT BOARD — live from ilwu23.com, refreshes every 60s */}
-        <WorkBoard board={nightBoard} liveUrl="http://ilwu23.com/?screen=1" />
+        {/* NIGHT BOARD — live, refreshes every 60s */}
+        <WorkBoard board={nightBoard} liveUrl="https://ilwu.pepdekker.com/board?shift=night" />
 
-        {/* DAY BOARD — live from ilwu23.com, refreshes every 60s */}
-        <WorkBoard board={dayBoard} liveUrl="http://ilwu23.com/?screen=2" />
-
-        {/* WORK BOARD LINKS — mobile-friendly union site board */}
-        <div style={{ marginBottom:16 }}>
-          {[
-            { label:"Night Work Board", sub:"Mobile-friendly · Live dispatch", url:"https://ilwu.pepdekker.com/board?shift=night", badge:"NIGHT", badgeColor:C.navy },
-            { label:"Day Work Board",   sub:"Mobile-friendly · Live dispatch", url:"https://ilwu.pepdekker.com/board?shift=day",   badge:"DAY",   badgeColor:C.blue },
-          ].map(({ label, sub, url, badge, badgeColor }) => (
-            <a key={label} href={url} target="_blank" rel="noopener noreferrer"
-              onClick={() => window.posthog?.capture('external_link_clicked', { label, url })}
-              style={{ display:"block", background:C.white, border:`1.5px solid ${C.border}`,
-                borderLeft:`4px solid ${badgeColor}`, borderRadius:12, padding:"14px 16px",
-                textDecoration:"none", marginBottom:8 }}>
-              <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center" }}>
-                <div>
-                  <div style={{ fontWeight:700, fontSize:14, color:C.navy }}>{label}</div>
-                  <div style={{ fontSize:12, color:C.mutedText, marginTop:2 }}>{sub}</div>
-                </div>
-                <div style={{ fontFamily:"'Bebas Neue',sans-serif", fontSize:13,
-                  background:badgeColor, color:C.white, borderRadius:6,
-                  padding:"3px 10px", letterSpacing:1 }}>{badge}</div>
-              </div>
-            </a>
-          ))}
-          <div style={{ textAlign:"center", marginTop:4 }}>
-            <a href="http://ilwu23.com" target="_blank" rel="noopener noreferrer"
-              style={{ fontSize:12, color:C.mutedText, textDecoration:"none", display:"inline-block", padding:"8px 0" }}>
-              Official board ↗
-            </a>
-          </div>
-        </div>
+        {/* DAY BOARD — live, refreshes every 60s */}
+        <WorkBoard board={dayBoard}   liveUrl="https://ilwu.pepdekker.com/board?shift=day" />
 
         {/* VESSELS */}
         <div style={{ marginBottom:12 }}>
