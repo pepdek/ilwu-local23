@@ -381,7 +381,7 @@ function Onboarding({ onSave }) {
               Dispatch App
             </div>
             <div style={{ fontFamily:"'DM Mono',monospace", fontSize:11, color:"rgba(255,255,255,0.5)", marginTop:4, letterSpacing:"0.5px" }}>
-              ILWU LOCAL 23 · PORT OF TACOMA
+              PORT OF TACOMA · DISPATCH
             </div>
           </div>
         </div>
@@ -977,25 +977,16 @@ function DispatchApp() {
         {/* Left: mark + wordmark */}
         <div style={{ display:"flex", alignItems:"center", gap:10 }}>
           <ILWUMark size={34} />
-          <div>
-            <div style={{ fontFamily:"'Bebas Neue',sans-serif", fontSize:19, color:C.white, letterSpacing:"1px", lineHeight:1 }}>
-              Dispatch App
-            </div>
-            <div style={{ fontFamily:"'DM Mono',monospace", fontSize:10, color:"rgba(255,255,255,0.55)", letterSpacing:"0.5px", marginTop:3 }}>
-              ILWU LOCAL 23
-            </div>
+          <div style={{ fontFamily:"'Bebas Neue',sans-serif", fontSize:19, color:C.white, letterSpacing:"1px", lineHeight:1 }}>
+            Dispatch App
           </div>
         </div>
 
-        {/* Right: live status · union link · reg button */}
+        {/* Right: error indicator · reg button */}
         <div style={{ display:"flex", alignItems:"center", gap:10 }}>
           {error && (
             <span role="status" aria-label="Using cached data" style={{ fontSize:10, color:"#F59E0B", fontFamily:"'DM Mono',monospace" }}>⚠</span>
           )}
-          <a href="https://ilwu.pepdekker.com" target="_blank" rel="noopener noreferrer"
-            style={{ fontSize:11, color:"rgba(255,255,255,0.75)", fontFamily:"'DM Sans',sans-serif", fontWeight:600, textDecoration:"none", padding:"8px 0" }}>
-            Union ↗
-          </a>
           <button
             onClick={resetMember}
             aria-label={`Reg #${member.reg} — tap to change`}
@@ -1114,6 +1105,12 @@ function DispatchApp() {
       }}>
         This is an independent project. Not affiliated with ILWU or Local 23.{" "}
         <a href="/about" style={{ color:C.blue, textDecoration:"none", fontWeight:600, display:"inline-block", padding:"4px 0" }}>About & Roadmap →</a>
+        <div style={{ marginTop:8 }}>
+          <a href="https://ilwu.pepdekker.com" target="_blank" rel="noopener noreferrer"
+            style={{ color:C.blue, textDecoration:"none", fontWeight:600, display:"inline-block", padding:"4px 0" }}>
+            ILWU Local 23 Site →
+          </a>
+        </div>
       </div>
     </div>
   );
