@@ -689,7 +689,7 @@ function JobRow({ job, isLast, isHouse }) {
   );
 }
 
-function WorkBoard({ board, liveUrl }) {
+function WorkBoard({ board, liveUrl, lastFetched }) {
   const isNight     = board?.shift?.toUpperCase().includes("NIGHT");
   const icon        = isNight ? "🌙" : "☀️";
   const accentColor = isNight ? C.navy : C.blue;
@@ -715,8 +715,9 @@ function WorkBoard({ board, liveUrl }) {
               {board?.date && (
                 <span style={{ fontSize:12, color:C.mutedText, fontFamily:"'DM Mono',monospace" }}>{board.date}</span>
               )}
-              <span aria-hidden="true" style={{ width:7, height:7, borderRadius:"50%", background:"#22c55e", display:"inline-block" }} />
-              <span style={{ fontSize:10, color:"#22c55e", fontWeight:700, letterSpacing:"0.5px", fontFamily:"'DM Sans',sans-serif" }}>LIVE</span>
+              <span style={{ fontSize:10, color:"#22c55e", fontWeight:600, fontFamily:"'DM Mono',monospace" }}>
+                {lastFetched ? timeSince(lastFetched) : "LIVE"}
+              </span>
             </div>
           </div>
         </div>
@@ -825,9 +826,11 @@ function DispatchApp() {
   const [error,    setError]    = useState(null);
   const [vessels,     setVessels]     = useState([]);
   const [vesselError, setVesselError] = useState(false);
-  const [nightBoard,  setNightBoard]  = useState(null);
-  const [dayBoard,    setDayBoard]    = useState(null);
-  const [lastFetched, setLastFetched] = useState(null);
+  const [nightBoard,        setNightBoard]        = useState(null);
+  const [dayBoard,          setDayBoard]          = useState(null);
+  const [lastFetched,       setLastFetched]       = useState(null);
+  const [boardsLastFetched, setBoardsLastFetched] = useState(null);
+  const [vesselsLastFetched,setVesselsLastFetched]= useState(null);
   const [tick,        setTick]        = useState(0); // increments every 60s to re-render timeSince
   const todayIdx       = getTodayIdx();
   const relevantSheets = getRelevantSheets(sheets);
@@ -857,7 +860,7 @@ function DispatchApp() {
 
   useEffect(() => {
     fetchVessels().then(v => {
-      if (v) setVessels(v);
+      if (v) { setVessels(v); setVesselsLastFetched(Date.now()); }
       else setVesselError(true);
     });
   }, []);
@@ -871,6 +874,7 @@ function DispatchApp() {
       ]);
       if (night) setNightBoard(night);
       if (day)   setDayBoard(day);
+      if (night || day) setBoardsLastFetched(Date.now());
     }
     loadBoards();
     const interval = setInterval(loadBoards, 60000);
@@ -923,9 +927,10 @@ function DispatchApp() {
           fetchDispatchBoard("2"),
         ]);
         setAllSpins(map);
-        if (v)     setVessels(v);
+        if (v)     { setVessels(v); setVesselsLastFetched(Date.now()); }
         if (night) setNightBoard(night);
         if (day)   setDayBoard(day);
+        if (night || day) setBoardsLastFetched(Date.now());
         setLastFetched(new Date());
       } catch {}
       setRefreshing(false);
@@ -1017,10 +1022,10 @@ function DispatchApp() {
         <WeekCarousel sheets={relevantSheets} records={resolvedRecords} todayIdx={todayIdx} />
 
         {/* NIGHT BOARD — live, refreshes every 60s */}
-        <WorkBoard board={nightBoard} liveUrl="https://ilwu.pepdekker.com/board?shift=night" />
+        <WorkBoard board={nightBoard} liveUrl="https://ilwu.pepdekker.com/board?shift=night" lastFetched={boardsLastFetched} />
 
         {/* DAY BOARD — live, refreshes every 60s */}
-        <WorkBoard board={dayBoard}   liveUrl="https://ilwu.pepdekker.com/board?shift=day" />
+        <WorkBoard board={dayBoard}   liveUrl="https://ilwu.pepdekker.com/board?shift=day"   lastFetched={boardsLastFetched} />
 
         {/* VESSELS */}
         <div style={{ marginBottom:12 }}>
@@ -1032,8 +1037,9 @@ function DispatchApp() {
                   Vessels · Tacoma
                 </div>
                 <div style={{ display:"flex", alignItems:"center", gap:5, marginTop:3 }}>
-                  <span aria-hidden="true" style={{ width:7, height:7, borderRadius:"50%", background:"#22c55e", display:"inline-block" }} />
-                  <span style={{ fontSize:10, color:"#22c55e", fontWeight:700, letterSpacing:"0.5px", fontFamily:"'DM Sans',sans-serif" }}>LIVE</span>
+                  <span style={{ fontSize:10, color:"#22c55e", fontWeight:600, fontFamily:"'DM Mono',monospace" }}>
+                    {vesselsLastFetched ? timeSince(vesselsLastFetched) : "LIVE"}
+                  </span>
                 </div>
               </div>
             </div>
