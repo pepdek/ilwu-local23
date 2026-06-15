@@ -1,3 +1,5 @@
+import { useEffect } from "react";
+
 const C = {
   navy:      "#00305b",
   blue:      "#377dbd",
@@ -98,6 +100,22 @@ function Hero() {
         </p>
       </div>
     </section>
+  );
+}
+
+// ─── PRIVACY BLOCK ────────────────────────────────────────────────────────────
+function PrivacyBlock() {
+  return (
+    <div style={{ background: '#fff', borderTop: '4px solid #fff216', padding: '28px 32px', maxWidth: '100%' }}>
+      <div style={{ maxWidth: 640, margin: '0 auto' }}>
+        <div style={{ fontFamily: "'Bebas Neue',sans-serif", fontSize: 13, color: '#377dbd', letterSpacing: 2, textTransform: 'uppercase', marginBottom: 12 }}>
+          How your data works
+        </div>
+        <div style={{ fontFamily: "'DM Sans',sans-serif", fontSize: 16, color: '#0F0F0F', lineHeight: 1.7 }}>
+          Your registration number is saved in your browser's local storage — the same mechanism a website uses to remember your dark mode preference. <strong>Nothing leaves your device.</strong> There is no CheckMySpins server. There is no account to create, breach, or delete. The spin data comes directly from the public Google Sheet Local 23 already posts every week. The vessel schedule comes from the Northwest Seaport Alliance's public schedule. We read public data and display it on your phone. That's the entire architecture.
+        </div>
+      </div>
+    </div>
   );
 }
 
@@ -500,6 +518,8 @@ function CTA() {
 
 // ─── PAGE ─────────────────────────────────────────────────────────────────────
 export default function About() {
+  useEffect(() => { document.title = "CheckMySpins — About & Roadmap"; }, []);
+
   return (
     <div style={{ fontFamily: "'DM Sans', sans-serif" }}>
       <style>{`
@@ -509,6 +529,7 @@ export default function About() {
       `}</style>
       <Nav />
       <Hero />
+      <PrivacyBlock />
       <Why />
       <How />
       <What />
