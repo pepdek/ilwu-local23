@@ -66,11 +66,11 @@ export async function loadSheetConfig() {
 
 export const FALLBACK = {
   "1UVrSQ4Yz9s7Fy3R4riSce824vv0a3pYyMwC7M7EPvW4": [
-    { reg:"230385", cls:"B", sat:182, sun:40,  mon:28,  tue:327, wed:326, thu:163, fri:218 },
+    { reg:"230234", cls:"B", sat:182, sun:40,  mon:28,  tue:327, wed:326, thu:163, fri:218 },
     { reg:"61843",  cls:"A", sat:237, sun:306, mon:741, tue:849, wed:61,  thu:585, fri:821 },
   ],
   "1jzZ5U4Sttt4Dfg01D9ipprT0usEL7GVZeW2IAto3sUU": [
-    { reg:"230385", cls:"B", sat:9,   sun:250, mon:171, tue:318, wed:240, thu:157, fri:272 },
+    { reg:"230234", cls:"B", sat:9,   sun:250, mon:171, tue:318, wed:240, thu:157, fri:272 },
     { reg:"61843",  cls:"A", sat:326, sun:424, mon:605, tue:400, wed:33,  thu:209, fri:236 },
   ],
 };
