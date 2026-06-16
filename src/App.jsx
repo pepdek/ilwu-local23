@@ -2,19 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import * as XLSX from "xlsx";
 import About from "./About.jsx";
-
-// ─── COLOUR TOKENS ────────────────────────────────────────────────────────────
-const C = {
-  navy:      "#00305b",
-  blue:      "#377dbd",
-  cream:     "#F7F6F2",
-  yellow:    "#fff216",
-  white:     "#ffffff",
-  dark:      "#0F0F0F",
-  muted:     "#9CA3AF",     // decorative only — fails WCAG AA on light bg
-  mutedText: "#6B7280",     // 4.6 : 1 on white — use for readable secondary text
-  border:    "#E8E5DC",
-};
+import { T } from "./tokens.js";
 
 // ─── SPIN SHEET DATA ──────────────────────────────────────────────────────────
 // Hardcoded fallback — also used as default until sheet-config.json loads.
@@ -303,8 +291,8 @@ async function fetchAllCSVs(sheets = SHEETS_FALLBACK) {
 function ILWUMark({ size = 34 }) {
   return (
     <svg width={size} height={size} viewBox="0 0 34 34" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-      <circle cx="17" cy="17" r="17" fill={C.yellow}/>
-      <circle cx="17" cy="17" r="14" fill={C.navy}/>
+      <circle cx="17" cy="17" r="17" fill={T.yellow}/>
+      <circle cx="17" cy="17" r="14" fill={T.navy}/>
       <ellipse cx="17" cy="17" rx="5.5" ry="14" stroke="rgba(255,255,255,0.25)" strokeWidth="0.8" fill="none"/>
       <line x1="3" y1="17" x2="31" y2="17" stroke="rgba(255,255,255,0.25)" strokeWidth="0.8"/>
       <ellipse cx="17" cy="17" rx="14" ry="5.5" stroke="rgba(255,255,255,0.25)" strokeWidth="0.8" fill="none"/>
@@ -370,36 +358,36 @@ function Onboarding({ onSave }) {
 
   const active = status === "found";
   return (
-    <div style={{ minHeight:"100vh", display:"flex", flexDirection:"column", fontFamily:"'DM Sans',sans-serif" }}>
+    <div style={{ minHeight:"100vh", display:"flex", flexDirection:"column", fontFamily:T.fontBody }}>
 
       {/* ── TOP ZONE — navy ── */}
-      <div style={{ background:C.navy, padding:"40px 24px 32px" }}>
+      <div style={{ background:T.navy, padding:"40px 24px 32px" }}>
         <div style={{ display:"flex", alignItems:"center", gap:12, marginBottom:0 }}>
           <ILWUMark size={36} />
           <div>
-            <div style={{ fontFamily:"'Bebas Neue',sans-serif", fontSize:32, color:C.white, letterSpacing:"1.5px", lineHeight:1 }}>
+            <div style={{ fontFamily:T.fontBody, fontWeight:700, fontSize:32, color:T.white, letterSpacing:"1.5px", lineHeight:1 }}>
               Dispatch App
             </div>
-            <div style={{ fontFamily:"'DM Mono',monospace", fontSize:11, color:"rgba(255,255,255,0.5)", marginTop:4, letterSpacing:"0.5px" }}>
+            <div style={{ fontFamily:T.fontMono, fontSize:11, color:"rgba(255,255,255,0.5)", marginTop:4, letterSpacing:"0.5px" }}>
               PORT OF TACOMA · DISPATCH
             </div>
           </div>
         </div>
-        <div style={{ width:40, height:3, background:C.yellow, margin:"20px 0 16px" }} aria-hidden="true" />
-        <div style={{ fontSize:16, color:C.blue, fontFamily:"'DM Sans',sans-serif", fontWeight:500, lineHeight:1.4 }}>
+        <div style={{ width:40, height:3, background:T.yellow, margin:`${T.space[3]}px 0 ${T.space[2]}px` }} aria-hidden="true" />
+        <div style={{ fontSize:16, color:T.blue, fontFamily:T.fontBody, fontWeight:500, lineHeight:1.4 }}>
           Your spins. Your board. One tap.
         </div>
       </div>
 
       {/* ── BOTTOM ZONE — cream ── */}
-      <div style={{ flex:1, background:C.cream, padding:"28px 24px 36px" }}>
+      <div style={{ flex:1, background:T.cream, padding:`${T.space[3]}px ${T.space[3]}px ${T.space[5]}px` }}>
 
         {/* Privacy note first — addresses hesitation before the input */}
-        <div style={{ fontSize:12, color:"#6B7280", marginBottom:20 }}>
+        <div style={{ fontSize:12, color:T.mutedText, marginBottom:20, lineHeight:1.6 }}>
           No account needed — stays on your device.
         </div>
 
-        <label style={{ fontSize:12, fontWeight:600, color:"#555", display:"block", marginBottom:8 }}>Registration #</label>
+        <label style={{ fontSize:12, fontWeight:600, color:T.mutedText, display:"block", marginBottom:8 }}>Registration #</label>
         <input
           type="tel" inputMode="numeric" placeholder="e.g. 61225"
           value={val} maxLength={8}
@@ -407,34 +395,38 @@ function Onboarding({ onSave }) {
           style={{
             width:"100%", boxSizing:"border-box", WebkitAppearance:"none", appearance:"none",
             border:"1.5px solid",
-            borderColor: status==="found" ? C.blue : status==="notfound" ? "#DC2626" : C.border,
-            borderRadius:12, padding:"16px", fontSize:26, fontFamily:"'DM Mono',monospace",
-            fontWeight:600, color:C.dark, letterSpacing:"4px", outline:"none",
-            textAlign:"center", transition:"border-color 0.2s", marginBottom:12, background:C.white,
+            borderColor: status==="found" ? T.blue : status==="notfound" ? T.error : T.border,
+            borderRadius:12, padding:"16px", fontSize:26, fontFamily:T.fontMono,
+            fontWeight:600, color:T.dark, letterSpacing:"4px", outline:"none",
+            textAlign:"center", transition:'border-color 0.15s ease', marginBottom:12, background:T.white,
           }}
         />
 
         {/* Status feedback — no fixed height, collapses when empty */}
         <div style={{ minHeight:0 }}>
           {status==="searching" && (
-            <div style={{ fontSize:13, color:C.muted, textAlign:"center", padding:"12px 0" }}>Looking up...</div>
+            <div style={{ fontSize:T.text.sm, color:T.muted, textAlign:"center", padding:"12px 0" }}>Looking up...</div>
           )}
           {status==="found" && found && (
-            <div style={{ display:"flex", alignItems:"center", gap:10, background:"#EFF6FF", border:`1px solid ${C.blue}`, borderRadius:10, padding:"12px 16px", marginBottom:4 }}>
+            <div style={{ display:"flex", alignItems:"center", gap:10, background:T.successBg, border:`1px solid ${T.blue}`, borderRadius:T.radius.md, padding:`${T.space[1]}px ${T.space[2]}px`, marginBottom:4 }}>
               <span style={{ fontSize:20 }}>✓</span>
               <div style={{ flex:1 }}>
-                <div style={{ fontSize:13, fontWeight:700, color:C.blue }}>Found — {found.cls} Class</div>
-                <div style={{ fontSize:11, color:C.muted }}>Class auto-detected from sheet</div>
+                <div style={{ fontSize:T.text.sm, fontWeight:700, color:T.blue }}>Found — {found.cls} Class</div>
+                <div style={{ fontSize:T.text.xs, color:T.muted }}>Class auto-detected from sheet</div>
               </div>
-              <div style={{ fontFamily:"'Bebas Neue',sans-serif", fontSize:32, color:C.blue, lineHeight:1 }}>{found.cls}</div>
+              <div style={{ fontFamily:T.fontBody, fontWeight:700, fontSize:32, color:T.blue, lineHeight:1 }}>{found.cls}</div>
             </div>
           )}
           {status==="notfound" && (
-            <div style={{ background:"#FFF5F5", border:"1px solid #FECACA", borderRadius:10, padding:"12px 16px", marginBottom:4 }}>
-              <div style={{ fontSize:13, fontWeight:700, color:"#DC2626" }}>Not found in current sheets</div>
-              <div style={{ fontSize:11, color:C.muted, marginTop:3 }}>
-                B/Casual tabs may not be loaded yet.{" "}
-                <a href="https://ilwu.pepdekker.com" target="_blank" rel="noopener noreferrer" style={{ color:C.blue, fontWeight:600 }}>Check the union site ↗</a>
+            <div style={{ background:T.errorBg, border:`1px solid ${T.errorBorder}`, borderRadius:T.radius.md, padding:`${T.space[1]}px ${T.space[2]}px`, marginBottom:4 }}>
+              <div style={{ fontWeight:700, fontSize:T.text.sm, color:T.error, marginBottom:4 }}>
+                #{val} isn't in the current sheet
+              </div>
+              <div style={{ fontSize:T.text.xs, color:T.muted, lineHeight:1.6 }}>
+                The sheet updates every Saturday. If you're a Casual, your tab may post later in the week.{' '}
+                <a href="https://www.ilwulocal23.org" target="_blank" rel="noopener noreferrer" style={{ color:T.error, fontWeight:600 }}>
+                  Verify at ilwulocal23.org ↗
+                </a>
               </div>
             </div>
           )}
@@ -449,10 +441,10 @@ function Onboarding({ onSave }) {
           }}
           aria-label="Get started"
           style={{
-            width:"100%", background: active ? C.navy : C.border, color: active ? C.yellow : C.muted,
-            borderRadius:12, padding:"17px", fontSize:16, fontFamily:"'Bebas Neue',sans-serif",
+            width:"100%", background: active ? T.navy : T.border, color: active ? T.yellow : T.muted,
+            borderRadius:12, padding:`${T.space[2]}px`, fontSize:16, fontFamily:T.fontBody, fontWeight:700,
             letterSpacing:"1px", cursor: active ? "pointer" : "default", border:"none", marginTop:12,
-            transition:"background 0.2s, color 0.2s",
+            transition:'background-color 0.2s ease, color 0.2s ease, opacity 0.2s ease',
           }}>
           Check My Spins →
         </button>
@@ -463,7 +455,7 @@ function Onboarding({ onSave }) {
 }
 
 // ─── WEEK CARD ────────────────────────────────────────────────────────────────
-function WeekCard({ sheet, record, todayIdx, isCurrent }) {
+function WeekCard({ sheet, record, todayIdx, isCurrent, reg }) {
   // Initial state: today for current week, Saturday (0) for next week.
   // useEffect below will update to best day once record loads.
   const [selDay, setSelDay] = useState(isCurrent ? todayIdx : 0);
@@ -503,26 +495,26 @@ function WeekCard({ sheet, record, todayIdx, isCurrent }) {
     DAYS_FULL[selDay].toUpperCase();
 
   return (
-    <div style={{ background:C.white, borderRadius:18, border:`1.5px solid ${C.border}`, overflow:"hidden", boxShadow:"0 1px 4px rgba(0,0,0,0.05)" }}>
-      <div style={{ height:4, background: isCurrent ? C.navy : C.blue }} />
-      <div style={{ padding:"12px 18px 0", display:"flex", justifyContent:"space-between", alignItems:"center" }}>
-        <span style={{ fontFamily:"'Bebas Neue',sans-serif", fontSize:13, color: isCurrent ? C.navy : C.muted, letterSpacing:"1px" }}>
+    <div style={{ background:T.white, borderRadius:T.radius.xl, border:`1.5px solid ${T.border}`, overflow:"hidden", boxShadow:"0 1px 4px rgba(0,0,0,0.05)", transition:'transform 0.28s cubic-bezier(0.4, 0, 0.2, 1)' }}>
+      <div style={{ height:4, background: isCurrent ? T.navy : T.blue }} />
+      <div style={{ padding:`${T.space[1]}px ${T.space[2]}px 0`, display:"flex", justifyContent:"space-between", alignItems:"center" }}>
+        <span style={{ fontFamily:T.fontBody, fontWeight:700, fontSize:T.text.xs, color: isCurrent ? T.navy : T.muted, letterSpacing:"2px", textTransform:"uppercase" }}>
           {isCurrent ? "This Week" : "Next Week"}
         </span>
-        <span style={{ fontSize:11, color:C.muted, fontFamily:"'DM Mono',monospace" }}>{sheet.label}</span>
+        <span style={{ fontSize:T.text.xs, color:T.muted, fontFamily:T.fontMono }}>{sheet.label}</span>
       </div>
-      <div style={{ padding:"4px 18px 0" }}>
-        <div style={{ fontSize:11, fontWeight:500, color:C.muted, textTransform:"uppercase", letterSpacing:"1px", marginBottom:2, minHeight:16, fontFamily:"'DM Sans',sans-serif" }}>
+      <div style={{ padding:`4px ${T.space[2]}px 0` }}>
+        <div style={{ fontSize:T.text.xs, fontWeight:500, color:T.muted, textTransform:"uppercase", letterSpacing:"1px", marginBottom:2, minHeight:16, fontFamily:T.fontBody }}>
           {heroLabel}
         </div>
-        <div style={{ fontFamily:"'Bebas Neue',sans-serif", fontSize:84, lineHeight:0.9, color:C.navy, letterSpacing:"-2px" }}>
+        <div style={{ fontFamily:"'Bebas Neue', sans-serif", fontSize:84, color:T.navy, letterSpacing:"-2px", lineHeight:1 }}>
           {heroSpin ?? "—"}
         </div>
         <div style={{ height:14 }} />
       </div>
 
       {/* Day grid */}
-      <div style={{ display:"grid", gridTemplateColumns:"repeat(7,1fr)", gap:3, padding:"0 10px 14px" }}>
+      <div style={{ display:"grid", gridTemplateColumns:"repeat(7,1fr)", gap:3, padding:`0 ${T.space[1]}px ${T.space[2]}px` }}>
         {DAYS_KEY.map((dk, di) => {
           const spin    = record?.[dk] ?? null;
           const rank    = rankMap[di] ?? -1;
@@ -530,11 +522,11 @@ function WeekCard({ sheet, record, todayIdx, isCurrent }) {
           const isTop1  = rank === 0;
           const isTop23 = rank === 1 || rank === 2;
 
-          const bg          = isTop1 ? C.navy   : isTop23 ? C.blue  : C.cream;
-          const borderColor = isTop1 ? C.yellow : isTop23 ? C.blue  : isToday ? C.navy : "transparent";
+          const bg          = isTop1 ? T.navy   : isTop23 ? T.blue  : T.cream;
+          const borderColor = isTop1 ? T.yellow : isTop23 ? T.blue  : isToday ? T.navy : "transparent";
           const borderWidth = isTop1 ? "2px"    : "1.5px";
-          const dayColor    = isTop1 ? C.yellow : isTop23 ? "rgba(255,255,255,0.7)" : isToday ? C.navy : C.muted;
-          const numColor    = isTop1 ? C.yellow : isTop23 ? C.white : isToday ? C.navy : spin ? C.muted : "#ddd";
+          const dayColor    = isTop1 ? T.yellow : isTop23 ? "rgba(255,255,255,0.7)" : isToday ? T.navy : T.muted;
+          const numColor    = isTop1 ? T.yellow : isTop23 ? T.white : isToday ? T.navy : spin ? T.muted : "#ddd";
 
           return (
             <button
@@ -544,17 +536,19 @@ function WeekCard({ sheet, record, todayIdx, isCurrent }) {
                 window.posthog?.capture('day_selected', { day: DAYS_FULL[di], week: sheet.label });
               }}
               aria-label={`${DAYS_FULL[di]}: spin ${spin ?? "no data"}`}
+              className={isTop1 ? 'best-day-cell' : undefined}
               style={{
                 background:  bg,
                 border:      `${borderWidth} solid ${borderColor}`,
-                borderRadius:9, padding:"6px 2px", textAlign:"center", cursor:"pointer",
+                borderRadius:9, padding:`${T.space[1]}px 2px`, textAlign:"center", cursor:"pointer",
                 minHeight:44, display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center",
+                transition:'background-color 0.12s ease, border-color 0.12s ease',
               }}>
-              {isTop1 && <div style={{ fontSize:9, color:C.yellow, lineHeight:1, marginBottom:1 }}>★</div>}
-              <div style={{ fontSize:9, fontFamily:"'DM Mono',monospace", fontWeight:600, color:dayColor, letterSpacing:"0.3px", marginBottom:2 }}>
+              {isTop1 && <div style={{ fontSize:9, color:T.yellow, lineHeight:1, marginBottom:1 }}>★</div>}
+              <div style={{ fontSize:9, fontFamily:T.fontMono, fontWeight:600, color:dayColor, letterSpacing:"0.3px", marginBottom:2 }}>
                 {DAYS_ABBR[di]}
               </div>
-              <div style={{ fontFamily:"'Bebas Neue',sans-serif", fontSize:18, lineHeight:1, color:numColor }}>
+              <div style={{ fontFamily:T.fontMono, fontWeight:500, fontSize:18, lineHeight:1, color:numColor }}>
                 {spin ?? "—"}
               </div>
             </button>
@@ -563,9 +557,16 @@ function WeekCard({ sheet, record, todayIdx, isCurrent }) {
       </div>
 
       {!record && (
-        <div style={{ margin:"0 14px 14px", padding:"10px 14px", background:"#FFF5F5", border:"1px solid #FECACA", borderRadius:8, fontSize:12, color:"#DC2626" }}>
-          Reg # not found in {sheet.label}.{" "}
-          <a href="https://www.ilwulocal23.org" target="_blank" rel="noopener noreferrer" style={{ color:C.blue, fontWeight:600 }}>Check ilwulocal23.org ↗</a>
+        <div style={{ margin:`0 ${T.space[2]}px ${T.space[2]}px`, background:T.errorBg, border:`1px solid ${T.errorBorder}`, borderRadius:T.radius.md, padding:`${T.space[1]}px ${T.space[2]}px` }}>
+          <div style={{ fontWeight:700, fontSize:T.text.sm, color:T.error, marginBottom:4 }}>
+            #{reg} isn't in {sheet.label}
+          </div>
+          <div style={{ fontSize:T.text.xs, color:T.muted, lineHeight:1.6 }}>
+            The sheet updates every Saturday. If you're a Casual, your tab may post later in the week.{' '}
+            <a href="https://www.ilwulocal23.org" target="_blank" rel="noopener noreferrer" style={{ color:T.error, fontWeight:600 }}>
+              Verify at ilwulocal23.org ↗
+            </a>
+          </div>
         </div>
       )}
     </div>
@@ -574,27 +575,28 @@ function WeekCard({ sheet, record, todayIdx, isCurrent }) {
 
 // sheets is already the relevant window (1–2 items from getRelevantSheets).
 // Index 0 is always the current week; index 1 (if present) is next week.
-function WeekCarousel({ sheets, records, todayIdx }) {
+function WeekCarousel({ sheets, records, todayIdx, reg }) {
   const [page, setPage] = useState(0);
   const hasNext = sheets.length > 1;
   return (
-    <div style={{ marginBottom:12 }}>
+    <div style={{ marginBottom:T.space[2] }}>
       <WeekCard
         sheet={sheets[page]}
         record={records[sheets[page].id]}
         todayIdx={todayIdx}
         isCurrent={page === 0}
+        reg={reg}
       />
       {hasNext && (
         <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginTop:10, padding:"0 2px" }}>
           <button onClick={() => setPage(0)} aria-label="This week"
-            style={{ padding:"8px 18px", minHeight:44, borderRadius:20, background: page===0 ? C.cream : C.navy, color: page===0 ? C.muted : C.white, fontSize:13, fontWeight:600, border:"none", cursor: page===0 ? "default" : "pointer" }}>
+            style={{ padding:"8px 18px", minHeight:44, borderRadius:T.radius.pill, background: page===0 ? T.cream : T.navy, color: page===0 ? T.muted : T.white, fontSize:T.text.sm, fontWeight:600, border:"none", cursor: page===0 ? "default" : "pointer" }}>
             ← This Week
           </button>
           <div style={{ display:"flex", gap:6 }}>
             {sheets.map((_, i) => (
               <button key={i} onClick={() => setPage(i)} aria-label={`Week ${i+1}`}
-                style={{ width: i===page ? 20 : 7, height:7, borderRadius:4, background: i===page ? C.navy : C.border, border:"none", cursor:"pointer", transition:"all 0.2s", padding:0 }} />
+                style={{ width: i===page ? 20 : 7, height:7, borderRadius:4, background: i===page ? T.navy : T.border, border:"none", cursor:"pointer", transition:'width 0.2s ease, background-color 0.2s ease', padding:0 }} />
             ))}
           </div>
           <button
@@ -605,7 +607,7 @@ function WeekCarousel({ sheets, records, todayIdx }) {
               }
             }}
             aria-label="Next week"
-            style={{ padding:"8px 18px", minHeight:44, borderRadius:20, background: page===1 ? C.cream : C.navy, color: page===1 ? C.muted : C.white, fontSize:13, fontWeight:600, border:"none", cursor: page===1 ? "default" : "pointer" }}>
+            style={{ padding:"8px 18px", minHeight:44, borderRadius:T.radius.pill, background: page===1 ? T.cream : T.navy, color: page===1 ? T.muted : T.white, fontSize:T.text.sm, fontWeight:600, border:"none", cursor: page===1 ? "default" : "pointer" }}>
             Next Week →
           </button>
         </div>
@@ -642,8 +644,8 @@ function JobRow({ job, isLast, isHouse }) {
   // Dispatcher annotations (e.g. "NO SCRAP, REPICK SUNDAY") — not real vessels
   if (!isHouse && isAnnotation(job)) {
     return (
-      <div style={{ fontSize:12, color:C.muted, fontStyle:"italic",
-        padding:"6px 16px", borderTop:"1px solid #F0EDE4" }}>
+      <div style={{ fontSize:12, color:T.muted, fontStyle:"italic",
+        padding:`${T.space[1]}px ${T.space[2]}px`, borderTop:`1px solid ${T.border}` }}>
         {job.vessel}{job.terminal ? ` — ${job.terminal}` : ''}
       </div>
     );
@@ -651,14 +653,14 @@ function JobRow({ job, isLast, isHouse }) {
 
   return (
     <div style={{
-      padding:"11px 16px",
-      borderBottom: isLast ? "none" : `1px solid ${isHouse ? C.border : C.cream}`,
-      background: isHouse ? C.cream : C.white,
+      padding:`${T.space[1]}px ${T.space[2]}px`,
+      borderBottom: isLast ? "none" : `1px solid ${isHouse ? T.border : T.cream}`,
+      background: isHouse ? T.cream : T.white,
     }}>
       <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", gap:8 }}>
         <div style={{ minWidth:0 }}>
-          <div style={{ fontWeight:600, fontSize:13, color: isHouse ? "#555" : C.dark }}>{job.vessel}</div>
-          <div style={{ fontSize:12, color:C.mutedText, marginTop:1 }}>
+          <div style={{ fontWeight:600, fontSize:T.text.sm, color: isHouse ? T.mutedText : T.dark }}>{job.vessel}</div>
+          <div style={{ fontSize:12, color:T.mutedText, marginTop:1 }}>
             {[job.terminal, job.start].filter(Boolean).join(' · ')}
           </div>
         </div>
@@ -668,19 +670,19 @@ function JobRow({ job, isLast, isHouse }) {
             job.details.map((d, di) => (
               <span key={di} style={{
                 fontSize:10, borderRadius:5, padding:"3px 7px", fontWeight:600,
-                whiteSpace:"nowrap", background:C.border, color:"#555",
+                whiteSpace:"nowrap", background:T.border, color:T.mutedText,
               }}>{d}</span>
             ))
           ) : (
             // Vessel work: labeled badges by fixed column position
             <>
-              {isValidCell(job.units)  && <DispatchBadge label=""     value={job.units}  bg="#374151" color="#fff"    />}
-              {isValidCell(job.cranes) && <DispatchBadge label="CR"   value={job.cranes} bg="#EFF6FF" color="#1D4ED8" />}
-              {isValidCell(job.xmen)   && <DispatchBadge label="X"    value={job.xmen}   bg="#ECFDF5" color="#059669" />}
-              {isValidCell(job.skxmen) && <DispatchBadge label="SK"   value={job.skxmen} bg="#ECFDF5" color="#059669" />}
-              {isValidCell(job.pd)     && <DispatchBadge label="PD"   value={job.pd}     bg="#FFFBEB" color="#D97706" />}
-              {isValidCell(job.lasher) && <DispatchBadge label="LASH" value={job.lasher} bg="#F5F3FF" color="#7C3AED" />}
-              {isValidCell(job.bus)    && <DispatchBadge label="BUS"  value={job.bus}    bg="#0891B2" color="#fff"    />}
+              {isValidCell(job.units)  && <DispatchBadge label=""     value={job.units}  bg={T.dispatch.unitsBg} color={T.dispatch.unitsColor} />}
+              {isValidCell(job.cranes) && <DispatchBadge label="CR"   value={job.cranes} bg={T.dispatch.crBg}    color={T.dispatch.crColor}    />}
+              {isValidCell(job.xmen)   && <DispatchBadge label="X"    value={job.xmen}   bg={T.dispatch.xBg}     color={T.dispatch.xColor}     />}
+              {isValidCell(job.skxmen) && <DispatchBadge label="SK"   value={job.skxmen} bg={T.dispatch.xBg}     color={T.dispatch.xColor}     />}
+              {isValidCell(job.pd)     && <DispatchBadge label="PD"   value={job.pd}     bg={T.dispatch.pdBg}    color={T.dispatch.pdColor}    />}
+              {isValidCell(job.lasher) && <DispatchBadge label="LASH" value={job.lasher} bg={T.dispatch.lasherBg} color={T.dispatch.lasherColor} />}
+              {isValidCell(job.bus)    && <DispatchBadge label="BUS"  value={job.bus}    bg={T.dispatch.busBg}   color={T.dispatch.busColor}   />}
             </>
           )}
         </div>
@@ -692,7 +694,7 @@ function JobRow({ job, isLast, isHouse }) {
 function WorkBoard({ board, liveUrl, lastFetched }) {
   const isNight     = board?.shift?.toUpperCase().includes("NIGHT");
   const icon        = isNight ? "🌙" : "☀️";
-  const accentColor = isNight ? C.navy : C.blue;
+  const accentColor = isNight ? T.navy : T.blue;
 
   const vesselJobs = board?.jobs      ?? [];
   const houseJobs  = board?.houseJobs ?? [];
@@ -700,29 +702,29 @@ function WorkBoard({ board, liveUrl, lastFetched }) {
   const hasHouse   = houseJobs.length  > 0;
 
   return (
-    <div style={{ marginBottom:16 }}>
+    <div style={{ marginBottom:T.space[2] }}>
       {/* ── Header ── */}
-      <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:10 }}>
+      <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:T.space[1] }}>
         <div style={{ display:"flex", alignItems:"center", gap:10 }}>
           <span style={{ fontSize:24, lineHeight:1 }} role="img" aria-label={isNight ? "Night" : "Day"}>
             {board ? icon : "⏳"}
           </span>
           <div>
-            <div style={{ fontFamily:"'Bebas Neue',sans-serif", fontSize:22, color:C.navy, letterSpacing:"2px", lineHeight:1 }}>
+            <div style={{ fontFamily:T.fontBody, fontWeight:700, fontSize:22, color:T.navy, letterSpacing:"2px", lineHeight:1 }}>
               {board ? board.shift : (isNight ? "NIGHT WORK" : "DAY WORK")}
             </div>
             <div style={{ display:"flex", alignItems:"center", gap:5, marginTop:3 }}>
               {board?.date && (
-                <span style={{ fontSize:12, color:C.mutedText, fontFamily:"'DM Mono',monospace" }}>{board.date}</span>
+                <span style={{ fontSize:12, color:T.mutedText, fontFamily:T.fontMono }}>{board.date}</span>
               )}
-              <span style={{ fontSize:10, color:"#22c55e", fontWeight:600, fontFamily:"'DM Mono',monospace" }}>
+              <span style={{ fontSize:10, color:T.live, fontWeight:600, fontFamily:T.fontMono }}>
                 {lastFetched ? timeSince(lastFetched) : "LIVE"}
               </span>
             </div>
           </div>
         </div>
         <a href={liveUrl} target="_blank" rel="noopener noreferrer"
-          style={{ fontSize:12, color:C.blue, fontWeight:600, padding:"8px 0", display:"inline-block" }}
+          style={{ fontSize:12, color:T.blue, fontWeight:600, padding:"8px 0", display:"inline-block" }}
           onClick={() => window.posthog?.capture('external_link_clicked', {
             label: isNight ? 'Night Work Board' : 'Day Work Board', url: liveUrl,
           })}>
@@ -731,13 +733,16 @@ function WorkBoard({ board, liveUrl, lastFetched }) {
       </div>
 
       {/* ── Card ── */}
-      <div style={{ background:C.white, borderRadius:14, border:`1.5px solid ${C.border}`, borderLeft:`3px solid ${accentColor}`, overflow:"hidden" }}>
+      <div style={{ background:T.white, borderRadius:T.radius.lg, border:`1.5px solid ${T.border}`, borderLeft:`3px solid ${accentColor}`, overflow:"hidden" }}>
         {!board ? (
-          <div style={{ padding:"18px 16px", textAlign:"center", color:C.mutedText, fontSize:13 }}>
-            Loading dispatch board…
+          <div style={{ textAlign:'center', padding:`${T.space[4]}px ${T.space[2]}px` }}>
+            <div style={{ fontSize:20, marginBottom:T.space[1] }}>📋</div>
+            <div style={{ fontFamily:T.fontBody, fontSize:T.text.sm, color:T.muted, lineHeight:1.6 }}>
+              Fetching dispatch board...
+            </div>
           </div>
         ) : !hasVessel && !hasHouse ? (
-          <div style={{ padding:"18px 16px", textAlign:"center", color:C.mutedText, fontSize:13 }}>
+          <div style={{ padding:"18px 16px", textAlign:"center", color:T.mutedText, fontSize:T.text.sm }}>
             No jobs posted yet
           </div>
         ) : (
@@ -747,8 +752,8 @@ function WorkBoard({ board, liveUrl, lastFetched }) {
               <>
                 {/* Section label — only shown when house work also exists */}
                 {hasHouse && (
-                  <div style={{ padding:"6px 16px", background:C.navy, display:"flex", alignItems:"center", gap:6 }}>
-                    <span style={{ fontFamily:"'Bebas Neue',sans-serif", fontSize:11, color:"rgba(255,255,255,0.6)", letterSpacing:"1.5px" }}>
+                  <div style={{ padding:`${T.space[1]}px ${T.space[2]}px`, background:T.navy, display:"flex", alignItems:"center", gap:6 }}>
+                    <span style={{ fontFamily:T.fontBody, fontWeight:700, fontSize:T.text.xs, color:"rgba(255,255,255,0.6)", letterSpacing:"2px", textTransform:"uppercase" }}>
                       🚢 VESSEL WORK
                     </span>
                   </div>
@@ -763,8 +768,8 @@ function WorkBoard({ board, liveUrl, lastFetched }) {
             {/* ── HOUSE WORK ── */}
             {hasHouse && (
               <>
-                <div style={{ padding:"6px 16px", background:C.blue, display:"flex", alignItems:"center", gap:6 }}>
-                  <span style={{ fontFamily:"'Bebas Neue',sans-serif", fontSize:11, color:"rgba(255,255,255,0.75)", letterSpacing:"1.5px" }}>
+                <div style={{ padding:`${T.space[1]}px ${T.space[2]}px`, background:T.blue, display:"flex", alignItems:"center", gap:6 }}>
+                  <span style={{ fontFamily:T.fontBody, fontWeight:700, fontSize:T.text.xs, color:"rgba(255,255,255,0.75)", letterSpacing:"2px", textTransform:"uppercase" }}>
                     🏗 HOUSE WORK
                   </span>
                 </div>
@@ -782,7 +787,7 @@ function WorkBoard({ board, liveUrl, lastFetched }) {
       <div style={{ textAlign:"center", marginTop:6 }}>
         <a href={`http://ilwu23.com/?screen=${isNight ? '1' : '2'}`}
           target="_blank" rel="noopener noreferrer"
-          style={{ fontSize:11, color:C.mutedText, textDecoration:"none",
+          style={{ fontSize:11, color:T.mutedText, textDecoration:"none",
             display:"inline-block", padding:"4px 0" }}>
           Official board ↗
         </a>
@@ -794,14 +799,14 @@ function WorkBoard({ board, liveUrl, lastFetched }) {
 // ─── VESSEL BADGE ─────────────────────────────────────────────────────────────
 function VesselBadge({ status }) {
   const map = {
-    "in-port":  { bg:C.navy,  color:C.white, border:"none",                  label:"IN PORT"  },
-    "arriving": { bg:C.blue,  color:C.white, border:"none",                  label:"ARRIVING" },
-    "upcoming": { bg:C.cream, color:C.navy,  border:`1px solid ${C.navy}`,   label:"UPCOMING" },
-    "departed": { bg:C.cream, color:C.muted, border:"1px solid transparent", label:"DEPARTED" },
+    "in-port":  { bg:T.navy,  color:T.white, border:"none",                  label:"IN PORT"  },
+    "arriving": { bg:T.blue,  color:T.white, border:"none",                  label:"ARRIVING" },
+    "upcoming": { bg:T.cream, color:T.navy,  border:`1px solid ${T.navy}`,   label:"UPCOMING" },
+    "departed": { bg:T.cream, color:T.muted, border:"1px solid transparent", label:"DEPARTED" },
   };
   const s = map[status] || map["upcoming"];
   return (
-    <span style={{ display:"inline-block", fontSize:9, fontWeight:700, padding:"3px 9px", borderRadius:20, background:s.bg, color:s.color, border:s.border, fontFamily:"'DM Mono',monospace", letterSpacing:"0.5px" }}>
+    <span style={{ display:"inline-block", fontSize:9, fontWeight:700, padding:"3px 9px", borderRadius:T.radius.pill, background:s.bg, color:s.color, border:s.border, fontFamily:T.fontMono, letterSpacing:"0.5px" }}>
       {s.label}
     </span>
   );
@@ -949,7 +954,7 @@ function DispatchApp() {
 
   return (
     <div
-      style={{ minHeight:"100vh", background:C.cream, fontFamily:"'DM Sans',sans-serif", maxWidth:430, margin:"0 auto" }}
+      style={{ minHeight:"100vh", background:T.cream, fontFamily:T.fontBody, maxWidth:430, margin:"0 auto" }}
       onTouchStart={onTouchStartPtr}
       onTouchMove={onTouchMovePtr}
       onTouchEnd={onTouchEndPtr}
@@ -958,26 +963,33 @@ function DispatchApp() {
         @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=DM+Mono:wght@500&family=Bebas+Neue&display=swap');
         * { box-sizing:border-box; margin:0; padding:0; -webkit-tap-highlight-color:transparent; }
         button { cursor:pointer; border:none; background:none; font:inherit; }
-        input:focus { border-color:${C.blue} !important; box-shadow:0 0 0 3px rgba(55,125,189,0.15) !important; }
+        input:focus { border-color:${T.blue} !important; box-shadow:0 0 0 3px rgba(55,125,189,0.15) !important; }
         a { text-decoration:none; color:inherit; }
+        button, a { transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease, opacity 0.15s ease; }
+        @keyframes bestDayIn {
+          0%   { transform: scale(0.92); opacity: 0.6; }
+          60%  { transform: scale(1.04); }
+          100% { transform: scale(1);    opacity: 1; }
+        }
+        .best-day-cell { animation: bestDayIn 0.35s cubic-bezier(0.34, 1.56, 0.64, 1) both; }
       `}</style>
 
       {/* Pull-to-refresh */}
-      <div ref={ptrEl} style={{ height:0, opacity:0, display:"flex", alignItems:"center", justifyContent:"center", overflow:"hidden", transition:"height 0.1s", background:C.cream }}>
-        <span style={{ fontSize:13, color:C.navy, fontWeight:600 }}>↓ Release to refresh</span>
+      <div ref={ptrEl} style={{ height:0, opacity:0, display:"flex", alignItems:"center", justifyContent:"center", overflow:"hidden", transition:"height 0.1s", background:T.cream }}>
+        <span style={{ fontSize:13, color:T.navy, fontWeight:600 }}>↓ Release to refresh</span>
       </div>
       {refreshing && (
-        <div style={{ background:C.navy, color:C.white, textAlign:"center", fontSize:12, fontWeight:600, padding:"8px", letterSpacing:"0.5px" }}>
+        <div style={{ background:T.navy, color:T.white, textAlign:"center", fontSize:12, fontWeight:600, padding:`${T.space[1]}px`, letterSpacing:"0.5px" }}>
           Refreshing...
         </div>
       )}
 
       {/* TOP BAR */}
-      <div style={{ background:C.navy, padding:"10px 16px", display:"flex", justifyContent:"space-between", alignItems:"center", position:"sticky", top:0, zIndex:10 }}>
+      <div style={{ background:T.navy, padding:`${T.space[1]}px ${T.space[2]}px`, display:"flex", justifyContent:"space-between", alignItems:"center", position:"sticky", top:0, zIndex:10 }}>
         {/* Left: mark + wordmark */}
         <div style={{ display:"flex", alignItems:"center", gap:10 }}>
           <ILWUMark size={34} />
-          <div style={{ fontFamily:"'Bebas Neue',sans-serif", fontSize:19, color:C.white, letterSpacing:"1px", lineHeight:1 }}>
+          <div style={{ fontFamily:T.fontBody, fontWeight:700, fontSize:19, color:T.white, letterSpacing:"1px", lineHeight:1 }}>
             Dispatch App
           </div>
         </div>
@@ -985,7 +997,7 @@ function DispatchApp() {
         {/* Right: error indicator · reg button */}
         <div style={{ display:"flex", alignItems:"center", gap:10 }}>
           {error && (
-            <span role="status" aria-label="Using cached data" style={{ fontSize:10, color:"#F59E0B", fontFamily:"'DM Mono',monospace" }}>⚠</span>
+            <span role="status" aria-label="Using cached data" style={{ fontSize:10, color:T.warning, fontFamily:T.fontMono }}>⚠</span>
           )}
           <button
             onClick={resetMember}
@@ -993,13 +1005,13 @@ function DispatchApp() {
             style={{
               background:"rgba(255,255,255,0.1)",
               border:"1px solid rgba(255,255,255,0.2)",
-              borderRadius:20,
-              padding:"7px 13px",
+              borderRadius:T.radius.pill,
+              padding:`${T.space[1]}px ${T.space[2]}px`,
               minHeight:36,
               fontSize:12,
-              fontFamily:"'DM Mono',monospace",
+              fontFamily:T.fontMono,
               fontWeight:600,
-              color:C.white,
+              color:T.white,
               letterSpacing:"0.5px",
               cursor:"pointer",
             }}>
@@ -1008,9 +1020,9 @@ function DispatchApp() {
         </div>
       </div>
 
-      <div style={{ padding:"14px 14px 64px" }}>
+      <div style={{ padding:`${T.space[2]}px ${T.space[2]}px 64px` }}>
 
-        <WeekCarousel sheets={relevantSheets} records={resolvedRecords} todayIdx={todayIdx} />
+        <WeekCarousel sheets={relevantSheets} records={resolvedRecords} todayIdx={todayIdx} reg={member?.reg} />
 
         {/* NIGHT BOARD — live, refreshes every 60s */}
         <WorkBoard board={nightBoard} liveUrl="https://ilwu.pepdekker.com/board?shift=night" lastFetched={boardsLastFetched} />
@@ -1019,16 +1031,16 @@ function DispatchApp() {
         <WorkBoard board={dayBoard}   liveUrl="https://ilwu.pepdekker.com/board?shift=day"   lastFetched={boardsLastFetched} />
 
         {/* VESSELS */}
-        <div style={{ marginBottom:12 }}>
-          <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:10 }}>
+        <div style={{ marginBottom:T.space[2] }}>
+          <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:T.space[1] }}>
             <div style={{ display:"flex", alignItems:"center", gap:10 }}>
               <span style={{ fontSize:24, lineHeight:1 }} role="img" aria-label="Vessels">🚢</span>
               <div>
-                <div style={{ fontFamily:"'Bebas Neue',sans-serif", fontSize:22, color:C.navy, letterSpacing:"2px", lineHeight:1 }}>
+                <div style={{ fontFamily:T.fontBody, fontWeight:700, fontSize:22, color:T.navy, letterSpacing:"2px", lineHeight:1 }}>
                   Vessels · Tacoma
                 </div>
                 <div style={{ display:"flex", alignItems:"center", gap:5, marginTop:3 }}>
-                  <span style={{ fontSize:10, color:"#22c55e", fontWeight:600, fontFamily:"'DM Mono',monospace" }}>
+                  <span style={{ fontSize:10, color:T.live, fontWeight:600, fontFamily:T.fontMono }}>
                     {vesselsLastFetched ? timeSince(vesselsLastFetched) : "LIVE"}
                   </span>
                 </div>
@@ -1036,7 +1048,7 @@ function DispatchApp() {
             </div>
             <a href="https://www.nwseaportalliance.com/cargo-operations/vessel-schedules-and-calendar"
               target="_blank" rel="noopener noreferrer"
-              style={{ fontSize:12, color:C.blue, fontWeight:600, padding:"8px 0", display:"inline-block" }}
+              style={{ fontSize:12, color:T.blue, fontWeight:600, padding:"8px 0", display:"inline-block" }}
               onClick={() => window.posthog?.capture('external_link_clicked', {
                 label: 'Full Vessel Schedule', url: 'https://www.nwseaportalliance.com/cargo-operations/vessel-schedules-and-calendar',
               })}>Full schedule ↗</a>
@@ -1044,15 +1056,15 @@ function DispatchApp() {
 
           {/* Stat tiles */}
           {vessels.length > 0 && (
-            <div style={{ display:"grid", gridTemplateColumns:"repeat(3,1fr)", gap:8, marginBottom:10 }}>
+            <div style={{ display:"grid", gridTemplateColumns:"repeat(3,1fr)", gap:8, marginBottom:T.space[1] }}>
               {[
                 { label:"AT BERTH",    value: atBerth  },
                 { label:"NEXT 72 HRS", value: next72   },
                 { label:"THIS WEEK",   value: thisWeek },
               ].map(({ label, value }) => (
-                <div key={label} style={{ background:C.navy, borderRadius:10, padding:"12px 8px", textAlign:"center" }}>
-                  <div style={{ fontFamily:"'Bebas Neue',sans-serif", fontSize:36, color:C.yellow, lineHeight:1 }}>{value}</div>
-                  <div style={{ fontSize:9, color:C.white, fontWeight:600, textTransform:"uppercase", letterSpacing:"0.5px", marginTop:3, fontFamily:"'DM Sans',sans-serif" }}>{label}</div>
+                <div key={label} style={{ background:T.navy, borderRadius:T.radius.md, padding:`${T.space[2]}px ${T.space[1]}px`, textAlign:"center" }}>
+                  <div style={{ fontFamily:T.fontMono, fontWeight:700, fontSize:36, color:T.yellow, lineHeight:1 }}>{value}</div>
+                  <div style={{ fontSize:9, color:T.white, fontWeight:600, textTransform:"uppercase", letterSpacing:"0.5px", marginTop:3, fontFamily:T.fontBody }}>{label}</div>
                 </div>
               ))}
             </div>
@@ -1060,33 +1072,47 @@ function DispatchApp() {
 
           {/* Vessel list */}
           {vesselError ? (
-            <div style={{ background:C.white, borderRadius:14, border:`1.5px solid ${C.border}`, padding:"16px", fontSize:13, color:C.mutedText, textAlign:"center" }}>
-              Vessel schedule unavailable ·{" "}
-              <a href="https://www.nwseaportalliance.com/cargo-operations/vessel-schedules-and-calendar" target="_blank" rel="noopener noreferrer" style={{ color:C.blue, fontWeight:600 }}>Full schedule ↗</a>
+            <div style={{ background:T.white, borderRadius:T.radius.lg, border:`1.5px solid ${T.border}`, textAlign:'center', padding:`${T.space[4]}px ${T.space[2]}px` }}>
+              <div style={{ fontSize:24, marginBottom:T.space[1] }}>🌊</div>
+              <div style={{ fontFamily:T.fontBody, fontWeight:600, fontSize:T.text.base, color:T.dark, marginBottom:6 }}>
+                Schedule unavailable right now
+              </div>
+              <div style={{ fontSize:T.text.sm, color:T.muted, lineHeight:1.6, marginBottom:T.space[2] }}>
+                The NWSA updates their schedule throughout the day.<br/>Try again in a few minutes.
+              </div>
+              <a href="https://www.nwseaportalliance.com/cargo-operations/vessel-schedules-and-calendar"
+                target="_blank" rel="noopener noreferrer"
+                style={{ fontSize:T.text.sm, color:T.blue, fontWeight:600 }}>
+                View directly at NWSA ↗
+              </a>
             </div>
           ) : vessels.length === 0 ? (
-            <div style={{ background:C.white, borderRadius:14, border:`1.5px solid ${C.border}`, padding:"16px", fontSize:13, color:C.mutedText, textAlign:"center" }}>
-              Loading vessel schedule...
+            <div style={{ background:T.white, borderRadius:T.radius.lg, border:`1.5px solid ${T.border}`, textAlign:'center', padding:`${T.space[5]}px ${T.space[2]}px` }}>
+              <div style={{ fontSize:28, marginBottom:T.space[1] }}>⚓</div>
+              <div style={{ fontFamily:T.fontBody, fontSize:T.text.sm, color:T.muted, lineHeight:1.6 }}>
+                Fetching vessel schedule<br/>
+                <span style={{ color:T.blue }}>from Northwest Seaport Alliance...</span>
+              </div>
             </div>
           ) : (
-            <div style={{ background:C.white, borderRadius:14, border:`1.5px solid ${C.border}`, overflow:"hidden" }}>
+            <div style={{ background:T.white, borderRadius:T.radius.lg, border:`1.5px solid ${T.border}`, overflow:"hidden" }}>
               {vessels.map((v, i) => (
-                <div key={`${v.name}-${i}`} style={{ display:"flex", alignItems:"center", padding:"12px 16px", borderBottom:i<vessels.length-1?`1px solid ${C.cream}`:"none" }}>
+                <div key={`${v.name}-${i}`} style={{ display:"flex", alignItems:"center", padding:`${T.space[1]}px ${T.space[2]}px`, borderBottom:i<vessels.length-1?`1px solid ${T.cream}`:"none" }}>
                   <div style={{ flex:1 }}>
                     <div style={{ display:"flex", alignItems:"center" }}>
-                      <span style={{ fontWeight:600, fontSize:14, color: v.status==="departed" ? C.muted : C.dark }}>{v.name}</span>
+                      <span style={{ fontWeight:600, fontSize:14, color: v.status==="departed" ? T.muted : T.dark }}>{v.name}</span>
                       <a
                         href={`https://www.vesselfinder.com/?name=${encodeURIComponent(v.name)}`}
                         target="_blank" rel="noopener noreferrer"
                         onClick={() => window.posthog?.capture('ship_tracker_clicked', { vessel: v.name })}
-                        style={{ fontSize:12, color:C.blue, fontFamily:"'DM Mono',monospace", fontWeight:600, textDecoration:"none", marginLeft:8, whiteSpace:"nowrap", padding:"6px 0", display:"inline-block" }}>
+                        style={{ fontSize:12, color:T.blue, fontFamily:T.fontMono, fontWeight:600, textDecoration:"none", marginLeft:8, whiteSpace:"nowrap", padding:"6px 0", display:"inline-block" }}>
                         ⚓ TRACK
                       </a>
                     </div>
-                    <div style={{ fontSize:12, color:C.mutedText, marginTop:1 }}>{v.terminal} · {v.cargo}</div>
+                    <div style={{ fontSize:12, color:T.mutedText, marginTop:1 }}>{v.terminal} · {v.cargo}</div>
                   </div>
                   <div style={{ textAlign:"right" }}>
-                    <div style={{ fontSize:12, color:C.mutedText, fontFamily:"'DM Mono',monospace", marginBottom:4 }}>ETA {v.eta}</div>
+                    <div style={{ fontSize:12, color:T.mutedText, fontFamily:T.fontMono, marginBottom:4 }}>ETA {v.eta}</div>
                     <VesselBadge status={v.status} />
                   </div>
                 </div>
@@ -1099,15 +1125,16 @@ function DispatchApp() {
 
       {/* DISCLAIMER */}
       <div style={{
-        textAlign:"center", fontSize:12, color:C.mutedText,
-        fontFamily:"'DM Sans',sans-serif", padding:"16px 20px 8px",
+        textAlign:"center", fontSize:12, color:T.mutedText,
+        fontFamily:T.fontBody, padding:"16px 20px 8px",
         paddingBottom:"calc(8px + env(safe-area-inset-bottom))",
+        lineHeight:1.6,
       }}>
         This is an independent project. Not affiliated with ILWU or Local 23.{" "}
-        <a href="/about" style={{ color:C.blue, textDecoration:"none", fontWeight:600, display:"inline-block", padding:"4px 0" }}>About & Roadmap →</a>
+        <a href="/about" style={{ color:T.blue, textDecoration:"none", fontWeight:600, display:"inline-block", padding:"4px 0" }}>About & Roadmap →</a>
         <div style={{ marginTop:8 }}>
           <a href="https://ilwu.pepdekker.com" target="_blank" rel="noopener noreferrer"
-            style={{ color:C.blue, textDecoration:"none", fontWeight:600, display:"inline-block", padding:"4px 0" }}>
+            style={{ color:T.blue, textDecoration:"none", fontWeight:600, display:"inline-block", padding:"4px 0" }}>
             ILWU Local 23 Site →
           </a>
         </div>

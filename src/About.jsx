@@ -1,27 +1,19 @@
 import { useEffect } from "react";
-
-const C = {
-  navy:      "#00305b",
-  blue:      "#377dbd",
-  cream:     "#F7F6F2",
-  yellow:    "#fff216",
-  white:     "#ffffff",
-  dark:      "#0F0F0F",
-  muted:     "#9CA3AF",
-  mutedText: "#6B7280",   // 4.6:1 on white — readable secondary text
-  border:    "#E8E5DC",
-};
+import { T } from "./tokens.js";
 
 // ─── HELPERS ──────────────────────────────────────────────────────────────────
 function SectionLabel({ children, light = false }) {
   return (
     <div style={{
-      fontFamily: "'Bebas Neue', sans-serif",
-      fontSize: 13,
+      fontFamily: T.fontBody,
+      fontWeight: 700,
+      fontSize: T.text.xs,
       letterSpacing: "2px",
+      textTransform: "uppercase",
+      lineHeight: 1,
       // yellow on navy passes AA; navy on cream passes AA — no opacity needed
-      color: light ? C.yellow : C.navy,
-      marginBottom: 16,
+      color: light ? T.yellow : T.navy,
+      marginBottom: T.space[2],
     }}>
       {children}
     </div>
@@ -33,7 +25,7 @@ function Nav() {
   return (
     <nav style={{
       position: "sticky", top: 0, zIndex: 50,
-      background: C.navy,
+      background: T.navy,
       padding: "0 20px",
       display: "flex", justifyContent: "space-between", alignItems: "center",
       minHeight: 52,
@@ -42,10 +34,10 @@ function Nav() {
       <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
         <span style={{ fontSize: 18 }} aria-hidden="true">⚓</span>
         <div>
-          <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 16, color: C.white, letterSpacing: "2px", lineHeight: 1.1 }}>
+          <div style={{ fontFamily: T.fontBody, fontWeight: 700, fontSize: 16, color: T.white, letterSpacing: "2px", lineHeight: 1.1 }}>
             CheckMySpins
           </div>
-          <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: "rgba(255,255,255,0.5)", letterSpacing: "1px", lineHeight: 1 }}>
+          <div style={{ fontFamily: T.fontMono, fontSize: 10, color: "rgba(255,255,255,0.5)", letterSpacing: "1px", lineHeight: 1 }}>
             ILWU LOCAL 23 · PORT OF TACOMA
           </div>
         </div>
@@ -53,12 +45,12 @@ function Nav() {
       {/* Right: links */}
       <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
         <a href="/"
-          style={{ fontSize: 12, color: "rgba(255,255,255,0.65)", fontFamily: "'DM Sans', sans-serif",
+          style={{ fontSize: 12, color: "rgba(255,255,255,0.65)", fontFamily: T.fontBody,
             fontWeight: 600, textDecoration: "none", padding: "14px 8px" }}>
           ← App
         </a>
         <a href="https://ilwu.pepdekker.com" target="_blank" rel="noopener noreferrer"
-          style={{ fontSize: 12, color: C.yellow, fontFamily: "'DM Sans', sans-serif",
+          style={{ fontSize: 12, color: T.yellow, fontFamily: T.fontBody,
             fontWeight: 600, textDecoration: "none", padding: "14px 8px" }}>
           Union Site ↗
         </a>
@@ -70,14 +62,14 @@ function Nav() {
 // ─── HERO ─────────────────────────────────────────────────────────────────────
 function Hero() {
   return (
-    <section style={{ background: C.navy, padding: "80px 24px 72px" }}>
+    <section style={{ background: T.navy, padding: "80px 24px 72px" }}>
       <div style={{ maxWidth: 680, margin: "0 auto" }}>
-        <div style={{ width: 60, height: 4, background: C.yellow, marginBottom: 32 }} aria-hidden="true" />
+        <div style={{ width: 60, height: 4, background: T.yellow, marginBottom: 32 }} aria-hidden="true" />
 
         <h1 style={{
           fontFamily: "'Bebas Neue', sans-serif",
           fontSize: "clamp(44px, 10vw, 72px)",
-          color: C.white,
+          color: T.white,
           letterSpacing: "-1px",
           lineHeight: 1,
           margin: 0,
@@ -85,12 +77,12 @@ function Hero() {
           YOUR SPINS.<br />YOUR BOARD.<br />ONE SCREEN.
         </h1>
 
-        <div style={{ width: 80, height: 3, background: C.yellow, margin: "24px 0" }} aria-hidden="true" />
+        <div style={{ width: 80, height: 3, background: T.yellow, margin: `${T.space[3]}px 0` }} aria-hidden="true" />
 
         <p style={{
-          fontFamily: "'DM Sans', sans-serif",
+          fontFamily: T.fontBody,
           fontSize: 18,
-          color: C.blue,
+          color: T.blue,
           lineHeight: 1.6,
           margin: 0,
           maxWidth: 560,
@@ -106,12 +98,12 @@ function Hero() {
 // ─── PRIVACY BLOCK ────────────────────────────────────────────────────────────
 function PrivacyBlock() {
   return (
-    <div style={{ background: '#fff', borderTop: '4px solid #fff216', padding: '28px 32px', maxWidth: '100%' }}>
+    <div style={{ background: T.white, borderTop: `4px solid ${T.yellow}`, padding: '28px 32px', maxWidth: '100%' }}>
       <div style={{ maxWidth: 640, margin: '0 auto' }}>
-        <div style={{ fontFamily: "'Bebas Neue',sans-serif", fontSize: 13, color: '#377dbd', letterSpacing: 2, textTransform: 'uppercase', marginBottom: 12 }}>
+        <div style={{ fontFamily: T.fontBody, fontWeight: 700, fontSize: T.text.xs, color: T.blue, letterSpacing: 2, textTransform: 'uppercase', marginBottom: T.space[2] }}>
           How your data works
         </div>
-        <div style={{ fontFamily: "'DM Sans',sans-serif", fontSize: 16, color: '#0F0F0F', lineHeight: 1.7 }}>
+        <div style={{ fontFamily: T.fontBody, fontSize: 16, color: T.dark, lineHeight: 1.7 }}>
           Your registration number is saved in your browser's local storage — the same mechanism a website uses to remember your dark mode preference. <strong>Nothing leaves your device.</strong> There is no CheckMySpins server. There is no account to create, breach, or delete. The spin data comes directly from the public Google Sheet Local 23 already posts every week. The vessel schedule comes from the Northwest Seaport Alliance's public schedule. We read public data and display it on your phone. That's the entire architecture.
         </div>
       </div>
@@ -122,14 +114,14 @@ function PrivacyBlock() {
 // ─── WHY ──────────────────────────────────────────────────────────────────────
 function Why() {
   return (
-    <section style={{ background: C.cream, padding: "72px 24px" }}>
+    <section style={{ background: T.cream, padding: "72px 24px" }}>
       <div style={{ maxWidth: 680, margin: "0 auto" }}>
         <SectionLabel>01 · WHY WE BUILT THIS</SectionLabel>
 
         <h2 style={{
           fontFamily: "'Bebas Neue', sans-serif",
           fontSize: "clamp(32px, 8vw, 48px)",
-          color: C.navy,
+          color: T.navy,
           lineHeight: 1.1,
           margin: "0 0 32px",
         }}>
@@ -143,24 +135,24 @@ function Why() {
             `CheckMySpins puts everything you already look at in one place, so you spend less time looking and more time deciding.`,
           ].map((p, i) => (
             <p key={i} style={{
-              fontFamily: "'DM Sans', sans-serif",
-              fontSize: 17,
-              color: C.dark,
+              fontFamily: T.fontBody,
+              fontSize: T.text.md,
+              color: T.dark,
               lineHeight: 1.75,
-              margin: "0 0 20px",
+              margin: `0 0 ${T.space[3]}px`,
             }}>{p}</p>
           ))}
 
           <blockquote style={{
-            borderLeft: `4px solid ${C.yellow}`,
+            borderLeft: `4px solid ${T.yellow}`,
             paddingLeft: 24,
             margin: "36px 0 0",
           }}>
             <p style={{
-              fontFamily: "'DM Sans', sans-serif",
-              fontSize: 20,
+              fontFamily: T.fontBody,
+              fontSize: T.text.lg,
               fontStyle: "italic",
-              color: C.navy,
+              color: T.navy,
               lineHeight: 1.5,
               margin: 0,
             }}>
@@ -177,27 +169,27 @@ function Why() {
 function HowCard({ number, title, body }) {
   return (
     <div style={{
-      background: C.white,
-      border: `1.5px solid ${C.border}`,
-      borderTop: `3px solid ${C.navy}`,
+      background: T.white,
+      border: `1.5px solid ${T.border}`,
+      borderTop: `3px solid ${T.navy}`,
       borderRadius: 12,
-      padding: 24,
+      padding: `${T.space[3]}px`,
       flex: 1,
       minWidth: 0,
     }}>
       <div style={{
         width: 32, height: 32, borderRadius: "50%",
-        background: C.yellow, color: C.navy,
-        fontFamily: "'Bebas Neue', sans-serif", fontSize: 20,
+        background: T.yellow, color: T.navy,
+        fontFamily: T.fontMono, fontWeight: 700, fontSize: 20,
         display: "flex", alignItems: "center", justifyContent: "center",
-        marginBottom: 16,
+        marginBottom: T.space[2],
       }} aria-hidden="true">
         {number}
       </div>
-      <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 18, color: C.navy, letterSpacing: "1px", marginBottom: 10 }}>
+      <div style={{ fontFamily: T.fontBody, fontWeight: 700, fontSize: 18, color: T.navy, letterSpacing: "1px", marginBottom: T.space[1] }}>
         {title}
       </div>
-      <p style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 14, color: C.dark, lineHeight: 1.7, margin: 0 }}>
+      <p style={{ fontFamily: T.fontBody, fontSize: 14, color: T.dark, lineHeight: 1.7, margin: 0 }}>
         {body}
       </p>
     </div>
@@ -224,14 +216,14 @@ function How() {
   ];
 
   return (
-    <section style={{ background: C.white, padding: "72px 24px" }}>
+    <section style={{ background: T.white, padding: "72px 24px" }}>
       <div style={{ maxWidth: 900, margin: "0 auto" }}>
         <SectionLabel>02 · HOW IT WORKS</SectionLabel>
 
         <h2 style={{
           fontFamily: "'Bebas Neue', sans-serif",
           fontSize: "clamp(30px, 7vw, 44px)",
-          color: C.navy,
+          color: T.navy,
           lineHeight: 1.1,
           margin: "0 0 40px",
           maxWidth: 680,
@@ -260,14 +252,14 @@ function What() {
   ];
 
   return (
-    <section style={{ background: C.navy, padding: "72px 24px" }}>
+    <section style={{ background: T.navy, padding: "72px 24px" }}>
       <div style={{ maxWidth: 800, margin: "0 auto" }}>
         <SectionLabel light>03 · WHAT'S HERE NOW</SectionLabel>
 
         <h2 style={{
           fontFamily: "'Bebas Neue', sans-serif",
           fontSize: "clamp(30px, 7vw, 44px)",
-          color: C.white,
+          color: T.white,
           lineHeight: 1.1,
           margin: "0 0 40px",
         }}>
@@ -275,23 +267,24 @@ function What() {
         </h2>
 
         <style>{`@media(min-width:600px){.feature-grid{grid-template-columns:1fr 1fr!important}}`}</style>
-        <div className="feature-grid" style={{ display: "grid", gridTemplateColumns: "1fr", gap: 24 }}>
+        <div className="feature-grid" style={{ display: "grid", gridTemplateColumns: "1fr", gap: T.space[3] }}>
           {features.map(f => (
             <div key={f.label} style={{ display: "flex", gap: 14 }}>
               <span style={{
-                fontFamily: "'Bebas Neue', sans-serif",
+                fontFamily: T.fontBody,
+                fontWeight: 700,
                 fontSize: 22,
-                color: C.yellow,
+                color: T.yellow,
                 lineHeight: 1,
                 flexShrink: 0,
                 marginTop: 1,
               }} aria-hidden="true">✓</span>
               <div>
-                <div style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 15, fontWeight: 600, color: C.white, marginBottom: 4 }}>
+                <div style={{ fontFamily: T.fontBody, fontSize: T.text.base, fontWeight: 600, color: T.white, marginBottom: 4 }}>
                   {f.label}
                 </div>
                 {/* rgba white gives ~8:1 on navy — passes WCAG AA */}
-                <div style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 14, color: "rgba(255,255,255,0.72)", lineHeight: 1.6 }}>
+                <div style={{ fontFamily: T.fontBody, fontSize: 14, color: "rgba(255,255,255,0.72)", lineHeight: 1.6 }}>
                   {f.desc}
                 </div>
               </div>
@@ -341,14 +334,14 @@ const PHASES = [
 
 function Roadmap() {
   return (
-    <section style={{ background: C.cream, padding: "72px 24px" }}>
+    <section style={{ background: T.cream, padding: "72px 24px" }}>
       <div style={{ maxWidth: 720, margin: "0 auto" }}>
         <SectionLabel>04 · WHERE WE'RE GOING</SectionLabel>
 
         <h2 style={{
           fontFamily: "'Bebas Neue', sans-serif",
           fontSize: "clamp(30px, 7vw, 44px)",
-          color: C.navy,
+          color: T.navy,
           lineHeight: 1.1,
           margin: "0 0 20px",
         }}>
@@ -356,9 +349,9 @@ function Roadmap() {
         </h2>
 
         <p style={{
-          fontFamily: "'DM Sans', sans-serif",
+          fontFamily: T.fontBody,
           fontSize: 16,
-          color: C.dark,
+          color: T.dark,
           lineHeight: 1.7,
           margin: "0 0 48px",
           maxWidth: 580,
@@ -373,53 +366,54 @@ function Roadmap() {
             position: "absolute",
             left: 19, top: 0, bottom: 0,
             width: 2,
-            background: C.border,
+            background: T.border,
             zIndex: 0,
           }} aria-hidden="true" />
 
-          <div style={{ display: "flex", flexDirection: "column", gap: 28 }}>
+          <div style={{ display: "flex", flexDirection: "column", gap: T.space[4] }}>
             {PHASES.map((p, i) => (
-              <div key={p.phase} style={{ display: "flex", gap: 20, position: "relative", zIndex: 1 }}>
+              <div key={p.phase} style={{ display: "flex", gap: T.space[3], position: "relative", zIndex: 1 }}>
                 <div style={{
                   width: 40, height: 40, borderRadius: "50%", flexShrink: 0,
-                  background: p.active ? C.yellow : C.border,
-                  border: `3px solid ${p.active ? C.navy : C.border}`,
+                  background: p.active ? T.yellow : T.border,
+                  border: `3px solid ${p.active ? T.navy : T.border}`,
                   display: "flex", alignItems: "center", justifyContent: "center",
-                  fontFamily: "'Bebas Neue', sans-serif",
-                  fontSize: 14, color: C.navy, fontWeight: 700,
+                  fontFamily: T.fontMono,
+                  fontSize: 14, color: T.navy, fontWeight: 700,
                 }} aria-hidden="true">
                   {i + 1}
                 </div>
 
                 <div style={{
                   flex: 1,
-                  background: C.white,
-                  border: `1.5px solid ${C.border}`,
+                  background: T.white,
+                  border: `1.5px solid ${T.border}`,
                   borderRadius: 12,
-                  padding: "20px 24px",
+                  padding: `${T.space[3]}px ${T.space[3]}px`,
                   marginBottom: 8,
                 }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 10, flexWrap: "wrap" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: T.space[1], marginBottom: T.space[1], flexWrap: "wrap" }}>
                     <span style={{
-                      fontFamily: "'DM Mono', monospace",
+                      fontFamily: T.fontMono,
                       fontSize: 12,
-                      color: C.mutedText,
+                      color: T.mutedText,
                     }}>{p.phase}</span>
                     <span style={{
                       fontSize: 10, fontWeight: 700,
                       padding: "2px 8px", borderRadius: 20,
                       background: p.statusBg, color: p.statusColor,
-                      fontFamily: "'DM Mono', monospace", letterSpacing: "0.5px",
+                      fontFamily: T.fontMono, letterSpacing: "0.5px",
                     }}>{p.status}</span>
                   </div>
                   <div style={{
-                    fontFamily: "'Bebas Neue', sans-serif",
-                    fontSize: 20, color: C.navy,
-                    letterSpacing: "1px", marginBottom: 10,
+                    fontFamily: T.fontBody,
+                    fontWeight: 700,
+                    fontSize: 20, color: T.navy,
+                    letterSpacing: "1px", marginBottom: T.space[1],
                   }}>{p.title}</div>
                   <p style={{
-                    fontFamily: "'DM Sans', sans-serif",
-                    fontSize: 14, color: C.dark,
+                    fontFamily: T.fontBody,
+                    fontSize: 14, color: T.dark,
                     lineHeight: 1.7, margin: 0,
                   }}>{p.desc}</p>
                 </div>
@@ -435,12 +429,12 @@ function Roadmap() {
 // ─── STATEMENT OF INDEPENDENCE ────────────────────────────────────────────────
 function Independence() {
   return (
-    <section style={{ background: C.navy, padding: "72px 24px" }}>
+    <section style={{ background: T.navy, padding: "72px 24px" }}>
       <div style={{ maxWidth: 640, margin: "0 auto", textAlign: "center" }}>
         <h2 style={{
           fontFamily: "'Bebas Neue', sans-serif",
           fontSize: "clamp(28px, 7vw, 40px)",
-          color: C.white,
+          color: T.white,
           letterSpacing: "1px",
           margin: "0 0 32px",
         }}>
@@ -455,11 +449,11 @@ function Independence() {
           "If you work at Local 23 and want to shape what gets built — we want to hear from you.",
         ].map((p, i) => (
           <p key={i} style={{
-            fontFamily: "'DM Sans', sans-serif",
+            fontFamily: T.fontBody,
             fontSize: 16,
             color: "rgba(255,255,255,0.85)",
             lineHeight: 1.8,
-            margin: "0 0 20px",
+            margin: `0 0 ${T.space[3]}px`,
           }}>{p}</p>
         ))}
 
@@ -467,10 +461,10 @@ function Independence() {
           href="mailto:checkmyspins@gmail.com"
           style={{
             display: "inline-block",
-            marginTop: 16,
-            fontFamily: "'DM Mono', monospace",
+            marginTop: T.space[2],
+            fontFamily: T.fontMono,
             fontSize: 13,
-            color: C.yellow,
+            color: T.yellow,
             textDecoration: "none",
             borderBottom: `1px solid rgba(255,242,22,0.3)`,
             paddingBottom: 2,
@@ -486,25 +480,27 @@ function Independence() {
 // ─── CTA ──────────────────────────────────────────────────────────────────────
 function CTA() {
   return (
-    <section style={{ background: C.cream, padding: "72px 24px" }}>
+    <section style={{ background: T.cream, padding: "72px 24px" }}>
       <div style={{ maxWidth: 480, margin: "0 auto", textAlign: "center" }}>
         <style>{`@media(min-width:400px){.cta-buttons{flex-direction:row!important}}`}</style>
         <div className="cta-buttons" style={{ display: "flex", flexDirection: "column", gap: 12, justifyContent: "center" }}>
           <a href="/" style={{
-            fontFamily: "'Bebas Neue', sans-serif",
+            fontFamily: T.fontBody,
+            fontWeight: 700,
             fontSize: 16, letterSpacing: "1.5px",
-            background: C.navy, color: C.yellow,
+            background: T.navy, color: T.yellow,
             padding: "16px 28px", borderRadius: 10,
             textDecoration: "none", textAlign: "center",
           }}>
             CHECK MY SPINS →
           </a>
           <a href="https://ilwu.pepdekker.com" target="_blank" rel="noopener noreferrer" style={{
-            fontFamily: "'Bebas Neue', sans-serif",
+            fontFamily: T.fontBody,
+            fontWeight: 700,
             fontSize: 16, letterSpacing: "1.5px",
             background: "transparent",
-            color: C.navy,
-            border: `2px solid ${C.navy}`,
+            color: T.navy,
+            border: `2px solid ${T.navy}`,
             padding: "14px 28px", borderRadius: 10,
             textDecoration: "none", textAlign: "center",
           }}>
@@ -521,11 +517,12 @@ export default function About() {
   useEffect(() => { document.title = "CheckMySpins — About & Roadmap"; }, []);
 
   return (
-    <div style={{ fontFamily: "'DM Sans', sans-serif" }}>
+    <div style={{ fontFamily: T.fontBody }}>
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=DM+Mono:wght@400;500&family=Bebas+Neue&display=swap');
         * { box-sizing: border-box; margin: 0; padding: 0; }
         a { color: inherit; }
+        button, a { transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease, opacity 0.15s ease; }
       `}</style>
       <Nav />
       <Hero />
