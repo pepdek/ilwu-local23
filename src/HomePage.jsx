@@ -31,10 +31,11 @@ function EmbeddedOnboarding() {
         }
         if (match) { setFound(match); setStatus('found'); }
         else setStatus('notfound');
+        // Privacy: no reg numbers, no personal identifiers — anonymous events only
         window.posthog?.capture('reg_lookup', {
-          reg_number: trimmed,
           result: match ? 'found' : 'not_found',
           cls: match?.cls,
+          // reg_number intentionally omitted — covenant: nothing identifying leaves the device
         });
       } catch (err) {
         console.error('lookup error', err);
@@ -51,7 +52,8 @@ function EmbeddedOnboarding() {
 
   function handleGo() {
     if (!found) return;
-    window.posthog?.capture('member_onboarded', { reg_number: found.reg, cls: found.cls });
+    // Privacy: no reg numbers, no personal identifiers — anonymous events only
+    window.posthog?.capture('member_onboarded', { cls: found.cls });
     localStorage.setItem('ilwu23_member', JSON.stringify({ reg: found.reg, cls: found.cls }));
     window.location.href = '/app';
   }
