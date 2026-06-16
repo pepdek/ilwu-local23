@@ -822,6 +822,33 @@ function timeSince(date) {
   return `Updated ${Math.floor(secs / 3600)}h ago`;
 }
 
+// ─── FRIDAY REMINDER ──────────────────────────────────────────────────────────
+function downloadFridayReminder() {
+  const ics = [
+    'BEGIN:VCALENDAR',
+    'VERSION:2.0',
+    'PRODID:-//CheckMySpins//EN',
+    'BEGIN:VEVENT',
+    'SUMMARY:Check Your Spins 🔢',
+    'DTSTART;TZID=America/Los_Angeles:20260619T180000',
+    'RRULE:FREQ=WEEKLY;BYDAY=FR',
+    'DESCRIPTION:New spin sheet drops today. Check your numbers at https://checkmyspins.com',
+    'URL:https://checkmyspins.com',
+    'END:VEVENT',
+    'END:VCALENDAR',
+  ].join('\r\n');
+
+  const blob = new Blob([ics], { type: 'text/calendar;charset=utf-8' });
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  a.href     = url;
+  a.download = 'check-my-spins-reminder.ics';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
 // ─── MAIN ─────────────────────────────────────────────────────────────────────
 function DispatchApp() {
   const [sheets,   setSheets]   = useState(SHEETS_FALLBACK);
@@ -1023,6 +1050,32 @@ function DispatchApp() {
       <div style={{ padding:`${T.space[2]}px ${T.space[2]}px 64px` }}>
 
         <WeekCarousel sheets={relevantSheets} records={resolvedRecords} todayIdx={todayIdx} reg={member?.reg} />
+
+        <button
+          onClick={downloadFridayReminder}
+          style={{
+            width:'100%',
+            background:'transparent',
+            border:`1.5px solid ${T.border}`,
+            borderRadius:T.radius.md,
+            padding:'12px 16px',
+            fontFamily:T.fontBody,
+            fontWeight:600,
+            fontSize:T.text.sm,
+            color:T.muted,
+            cursor:'pointer',
+            marginBottom:12,
+            display:'flex',
+            alignItems:'center',
+            justifyContent:'center',
+            gap:8,
+            transition:'border-color 0.15s ease, color 0.15s ease',
+          }}
+          onMouseEnter={e => { e.currentTarget.style.borderColor = T.blue; e.currentTarget.style.color = T.blue; }}
+          onMouseLeave={e => { e.currentTarget.style.borderColor = T.border; e.currentTarget.style.color = T.muted; }}
+        >
+          🔔 Set Friday Reminder
+        </button>
 
         {/* NIGHT BOARD — live, refreshes every 60s */}
         <WorkBoard board={nightBoard} liveUrl="https://ilwu.pepdekker.com/board?shift=night" lastFetched={boardsLastFetched} />
