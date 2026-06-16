@@ -125,14 +125,15 @@ function Why() {
           lineHeight: 1.1,
           margin: "0 0 32px",
         }}>
-          Because a longshoreman shouldn't need three tabs open to decide if it's worth driving to the hall.
+          The uncertainty is real. The friction doesn't have to be.
         </h2>
 
         <div style={{ maxWidth: 640 }}>
           {[
-            `Every week, hundreds of ILWU Local 23 members do the same thing: open the spins sheet, search for their number, cross-reference the daily board, check the vessel schedule, and make a judgment call.`,
-            `That process hasn't changed in twenty years. The information is public. The union posts it. Members use it. But pulling it together on a phone at 5am — before a shift, before coffee — is friction that shouldn't exist.`,
-            `CheckMySpins puts everything you already look at in one place, so you spend less time looking and more time deciding.`,
+            `Longshore work is uncertain by design. The dispatch system is fair — the spin system exists to make sure work rotates equitably. Nobody's arguing with that.`,
+            `But the information about that uncertainty — your spin number, the vessels working, the board depth — takes fifteen minutes to find across three different websites on a phone at 5am. Meanwhile someone's waiting for a text. A kid needs to be picked up or not. Plans get made or don't.`,
+            `CheckMySpins doesn't change the uncertainty. It cuts the time between "information available" and "family can plan" from fifteen minutes to fifteen seconds.`,
+            `That's the whole thing.`,
           ].map((p, i) => (
             <p key={i} style={{
               fontFamily: T.fontBody,
@@ -156,7 +157,7 @@ function Why() {
               lineHeight: 1.5,
               margin: 0,
             }}>
-              "The information belongs to the members. We just made it easier to find."
+              "The hall controls the work. You control how fast the information gets home."
             </p>
           </blockquote>
         </div>

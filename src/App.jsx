@@ -2,84 +2,9 @@ import { useState, useEffect, useRef } from "react";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import * as XLSX from "xlsx";
 import About from "./About.jsx";
+import HomePage from "./HomePage.jsx";
 import { T } from "./tokens.js";
-
-// ─── SPIN SHEET DATA ──────────────────────────────────────────────────────────
-// Hardcoded fallback — also used as default until sheet-config.json loads.
-// Only keep current + next; expired sheets are dropped.
-const SHEETS_FALLBACK = [
-  {
-    id: "1UVrSQ4Yz9s7Fy3R4riSce824vv0a3pYyMwC7M7EPvW4",
-    label: "Jun 6 – Jun 12",
-    startSat: new Date("2026-06-06"),
-  },
-  {
-    id: "1jzZ5U4Sttt4Dfg01D9ipprT0usEL7GVZeW2IAto3sUU",
-    label: "Jun 13 – Jun 19",
-    startSat: new Date("2026-06-13"),
-  },
-];
-
-const csvUrl = (id, tab) =>
-  `https://docs.google.com/spreadsheets/d/${id}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(tab)}`;
-
-// Returns exactly [currentSheet, nextSheet] — expired sheets are dropped.
-// If only one sheet is available, returns a single-item array.
-function getRelevantSheets(sheets) {
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  const sorted = [...sheets].sort((a, b) => a.startSat - b.startSat);
-  let currentIdx = -1;
-  for (let i = sorted.length - 1; i >= 0; i--) {
-    if (sorted[i].startSat <= today) { currentIdx = i; break; }
-  }
-  if (currentIdx === -1) currentIdx = 0; // all sheets are future — show earliest
-  return sorted.slice(currentIdx, currentIdx + 2);
-}
-
-// Loads sheet IDs from /sheet-config.json and reconstructs the SHEETS array.
-// Uses SHEETS_FALLBACK entries for known IDs; extrapolates weekly for new ones.
-async function loadSheetConfig() {
-  try {
-    const res = await fetch("/sheet-config.json");
-    if (!res.ok) throw new Error("config not found");
-    const data = await res.json();
-    const ids  = data.sheetIds || [];
-    if (!ids.length) throw new Error("empty config");
-
-    // Build date lookup from the fallback for all known IDs
-    const knownDates = {};
-    SHEETS_FALLBACK.forEach(s => { knownDates[s.id] = s.startSat; });
-
-    // Find the last known ID in the config to anchor extrapolation
-    let anchorDate = null, anchorPos = -1;
-    for (let i = ids.length - 1; i >= 0; i--) {
-      if (knownDates[ids[i]]) { anchorDate = knownDates[ids[i]]; anchorPos = i; break; }
-    }
-    if (!anchorDate) return null; // no anchor found, use fallback
-
-    return ids.map((id, i) => {
-      const startSat = knownDates[id] ||
-        new Date(anchorDate.getTime() + (i - anchorPos) * 7 * 86400000);
-      const endFri = new Date(startSat.getTime() + 6 * 86400000);
-      const fmt = d => d.toLocaleDateString("en-US", { month:"short", day:"numeric" });
-      return { id, label: `${fmt(startSat)} – ${fmt(endFri)}`, startSat };
-    });
-  } catch {
-    return null; // caller falls back to SHEETS_FALLBACK
-  }
-}
-
-const FALLBACK = {
-  "1UVrSQ4Yz9s7Fy3R4riSce824vv0a3pYyMwC7M7EPvW4": [
-    { reg:"230385", cls:"B", sat:182, sun:40,  mon:28,  tue:327, wed:326, thu:163, fri:218 },
-    { reg:"61843",  cls:"A", sat:237, sun:306, mon:741, tue:849, wed:61,  thu:585, fri:821 },
-  ],
-  "1jzZ5U4Sttt4Dfg01D9ipprT0usEL7GVZeW2IAto3sUU": [
-    { reg:"230385", cls:"B", sat:9,   sun:250, mon:171, tue:318, wed:240, thu:157, fri:272 },
-    { reg:"61843",  cls:"A", sat:326, sun:424, mon:605, tue:400, wed:33,  thu:209, fri:236 },
-  ],
-};
+import { SHEETS_FALLBACK, FALLBACK, getRelevantSheets, loadSheetConfig, fetchAllCSVs } from "./spinData.js";
 
 // ─── VESSEL FETCH ─────────────────────────────────────────────────────────────
 const SEATTLE_EXCLUDE = ["T18","T5","T30","T46","Duwamish"];
@@ -220,73 +145,6 @@ const DAYS_FULL = ["Saturday","Sunday","Monday","Tuesday","Wednesday","Thursday"
 const JS_TO_IDX = [1,2,3,4,5,6,0];
 function getTodayIdx() { return JS_TO_IDX[new Date().getDay()]; }
 
-// ─── CSV / SPIN FETCH ─────────────────────────────────────────────────────────
-function parseSpinCSV(csv) {
-  const rows = csv.trim().split("\n").map(r =>
-    r.split(",").map(c => c.replace(/^"|"$/g,"").trim())
-  );
-  return rows
-    .filter(r => r[0] && !isNaN(r[0]) && r[0] !== "")
-    .map(r => ({
-      reg: r[0].trim(), cls: r[1]?.trim() || "A",
-      sat: parseInt(r[2]) || null, sun: parseInt(r[3]) || null,
-      mon: parseInt(r[4]) || null, tue: parseInt(r[5]) || null,
-      wed: parseInt(r[6]) || null, thu: parseInt(r[7]) || null,
-      fri: parseInt(r[8]) || null,
-    }));
-}
-
-// Fetch A + B in parallel, then probe Casual tab name variants sequentially
-// until one returns actual data. The real tab is "C" but we try others as fallback.
-async function fetchTabsForSheet(sheetId, label) {
-  const [rA, rB] = await Promise.all([
-    fetch(csvUrl(sheetId, "A")),
-    fetch(csvUrl(sheetId, "B")),
-  ]);
-  const [cA, cB] = await Promise.all([rA.text(), rB.text()]);
-  console.log(`[${label} / A] first 200:`, cA.slice(0, 200));
-  console.log(`[${label} / B] first 200:`, cB.slice(0, 200));
-  const spinsAB = [...parseSpinCSV(cA), ...parseSpinCSV(cB)];
-
-  // Try Casual tab variants — "C" is the confirmed name, others are fallback
-  let spinsC = [];
-  for (const tabName of ["C", "Casual", "CASUAL", "casual"]) {
-    try {
-      const rC = await fetch(csvUrl(sheetId, tabName));
-      const cC = await rC.text();
-      const parsed = parseSpinCSV(cC);
-      if (parsed.length > 0) {
-        spinsC = parsed;
-        console.log(`Casual tab found as: "${tabName}" — ${parsed.length} records. First reg: ${parsed[0]?.reg}`);
-        break;
-      }
-    } catch { continue; }
-  }
-
-  return [...spinsAB, ...spinsC];
-}
-
-// sheets defaults to SHEETS_FALLBACK so Onboarding can call without a param
-async function fetchAllCSVs(sheets = SHEETS_FALLBACK) {
-  const results = await Promise.all(
-    sheets.map(sh =>
-      fetchTabsForSheet(sh.id, sh.label)
-        .then(spins => ({ sheetId: sh.id, spins }))
-        .catch(err => {
-          console.warn(`fetch failed [${sh.label}]`, err);
-          return { sheetId: sh.id, spins: [] };
-        })
-    )
-  );
-  const map = {};
-  for (const { sheetId, spins } of results) {
-    if (!map[sheetId]) map[sheetId] = [];
-    const existing = new Set(map[sheetId].map(s => s.reg));
-    map[sheetId].push(...spins.filter(s => !existing.has(s.reg)));
-  }
-  return map;
-}
-
 // ─── ILWU LOGO MARK ──────────────────────────────────────────────────────────
 function ILWUMark({ size = 34 }) {
   return (
@@ -375,7 +233,7 @@ function Onboarding({ onSave }) {
         </div>
         <div style={{ width:40, height:3, background:T.yellow, margin:`${T.space[3]}px 0 ${T.space[2]}px` }} aria-hidden="true" />
         <div style={{ fontSize:16, color:T.blue, fontFamily:T.fontBody, fontWeight:500, lineHeight:1.4 }}>
-          Your spins. Your board. One tap.
+          Your family's waiting to know if you're working this week. Let's find out.
         </div>
       </div>
 
@@ -455,10 +313,16 @@ function Onboarding({ onSave }) {
 }
 
 // ─── WEEK CARD ────────────────────────────────────────────────────────────────
-function WeekCard({ sheet, record, todayIdx, isCurrent, reg }) {
+function WeekCard({ sheet, record, todayIdx, isCurrent, reg, member }) {
   // Initial state: today for current week, Saturday (0) for next week.
   // useEffect below will update to best day once record loads.
   const [selDay, setSelDay] = useState(isCurrent ? todayIdx : 0);
+
+  // Pure read on mount (ref, not state-with-side-effect — StrictMode double-invokes
+  // useState lazy initializers, which would flip this false via its own write).
+  const isFirstLoadRef = useRef(localStorage.getItem('first_load_done') !== '1');
+  useEffect(() => { localStorage.setItem('first_load_done', '1'); }, []);
+  const isFirstLoad = isFirstLoadRef.current;
 
   // Whenever record arrives or changes, jump to the best spin day.
   useEffect(() => {
@@ -510,6 +374,11 @@ function WeekCard({ sheet, record, todayIdx, isCurrent, reg }) {
         <div style={{ fontFamily:"'Bebas Neue', sans-serif", fontSize:84, color:T.navy, letterSpacing:"-2px", lineHeight:1 }}>
           {heroSpin ?? "—"}
         </div>
+        {isFirstLoad && isCurrent && record && bestIdx !== null && (
+          <div style={{ fontSize:T.text.sm, color:T.blue, fontWeight:600, marginTop:4, lineHeight:1.6 }}>
+            Your best day this week is {DAYS_FULL[bestIdx]} — spin {record?.[DAYS_KEY[bestIdx]]}.
+          </div>
+        )}
         <div style={{ height:14 }} />
       </div>
 
@@ -556,6 +425,29 @@ function WeekCard({ sheet, record, todayIdx, isCurrent, reg }) {
         })}
       </div>
 
+      <div style={{ padding:`0 ${T.space[2]}px ${T.space[2]}px` }}>
+        <button
+          onClick={() => handleShare(member, record, sheet, bestIdx)}
+          disabled={!record}
+          style={{
+            width:'100%',
+            background:'transparent',
+            border:`1.5px solid ${T.border}`,
+            borderRadius:T.radius.md,
+            padding:'11px 16px',
+            fontFamily:T.fontBody, fontWeight:600,
+            fontSize:T.text.sm, color:T.muted,
+            cursor: record ? 'pointer' : 'default',
+            display:'flex', alignItems:'center',
+            justifyContent:'center', gap:8,
+          }}
+          onMouseEnter={e => { e.currentTarget.style.borderColor = T.blue; e.currentTarget.style.color = T.blue; }}
+          onMouseLeave={e => { e.currentTarget.style.borderColor = T.border; e.currentTarget.style.color = T.muted; }}
+        >
+          ↗ Share My Week
+        </button>
+      </div>
+
       {!record && (
         <div style={{ margin:`0 ${T.space[2]}px ${T.space[2]}px`, background:T.errorBg, border:`1px solid ${T.errorBorder}`, borderRadius:T.radius.md, padding:`${T.space[1]}px ${T.space[2]}px` }}>
           <div style={{ fontWeight:700, fontSize:T.text.sm, color:T.error, marginBottom:4 }}>
@@ -575,7 +467,7 @@ function WeekCard({ sheet, record, todayIdx, isCurrent, reg }) {
 
 // sheets is already the relevant window (1–2 items from getRelevantSheets).
 // Index 0 is always the current week; index 1 (if present) is next week.
-function WeekCarousel({ sheets, records, todayIdx, reg }) {
+function WeekCarousel({ sheets, records, todayIdx, reg, member }) {
   const [page, setPage] = useState(0);
   const hasNext = sheets.length > 1;
   return (
@@ -586,6 +478,7 @@ function WeekCarousel({ sheets, records, todayIdx, reg }) {
         todayIdx={todayIdx}
         isCurrent={page === 0}
         reg={reg}
+        member={member}
       />
       {hasNext && (
         <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginTop:10, padding:"0 2px" }}>
@@ -849,6 +742,127 @@ function downloadFridayReminder() {
   URL.revokeObjectURL(url);
 }
 
+// ─── SHARE CARD ───────────────────────────────────────────────────────────────
+function generateShareCard(member, record, sheet, bestIdx) {
+  const canvas  = document.createElement('canvas');
+  canvas.width  = 1080;
+  canvas.height = 1080;
+  const ctx     = canvas.getContext('2d');
+
+  // Background
+  ctx.fillStyle = T.navy;
+  ctx.fillRect(0, 0, 1080, 1080);
+
+  // Yellow top bar
+  ctx.fillStyle = T.yellow;
+  ctx.fillRect(0, 0, 1080, 10);
+
+  // Header
+  ctx.fillStyle = T.white;
+  ctx.font = 'bold 36px sans-serif';
+  ctx.fillText('CheckMySpins', 60, 90);
+
+  ctx.fillStyle = T.blue;
+  ctx.font = '22px sans-serif';
+  ctx.fillText('ILWU Local 23 · Port of Tacoma', 60, 130);
+
+  // Reg + class
+  ctx.fillStyle = T.yellow;
+  ctx.font = 'bold 20px monospace';
+  ctx.fillText(`#${member.reg} · ${member.cls} CLASS`, 60, 185);
+
+  // Week label
+  ctx.fillStyle = T.muted;
+  ctx.font = '18px monospace';
+  ctx.fillText(sheet.label.toUpperCase(), 60, 220);
+
+  // Divider
+  ctx.fillStyle = T.blue;
+  ctx.fillRect(60, 240, 960, 1);
+
+  // Day cards — 7 across
+  const cardW = 126, cardH = 160, startX = 54, startY = 265, gap = 10;
+  DAYS_KEY.forEach((dk, i) => {
+    const spin   = record?.[dk];
+    const isBest = i === bestIdx;
+    const x      = startX + i * (cardW + gap);
+
+    // Card bg
+    ctx.fillStyle = isBest ? T.yellow : 'rgba(255,255,255,0.08)';
+    ctx.beginPath();
+    ctx.roundRect(x, startY, cardW, cardH, 12);
+    ctx.fill();
+
+    // Day label
+    ctx.fillStyle  = isBest ? T.navy : T.muted;
+    ctx.font       = 'bold 14px sans-serif';
+    ctx.textAlign  = 'center';
+    ctx.fillText(DAYS_ABBR[i], x + cardW/2, startY + 30);
+
+    // Spin number
+    ctx.fillStyle = isBest ? T.navy : T.white;
+    ctx.font      = 'bold 58px sans-serif';
+    ctx.fillText(spin ?? '—', x + cardW/2, startY + 106);
+
+    // Star on best
+    if (isBest) {
+      ctx.fillStyle = T.navy;
+      ctx.font      = '22px sans-serif';
+      ctx.fillText('★ BEST', x + cardW/2, startY + 142);
+    }
+  });
+
+  ctx.textAlign = 'left';
+
+  // Best day callout
+  const best = record?.[DAYS_KEY[bestIdx]];
+  if (best) {
+    ctx.fillStyle = T.white;
+    ctx.font      = 'bold 32px sans-serif';
+    ctx.fillText(
+      `Best day: ${DAYS_ABBR[bestIdx]} · Spin ${best}`,
+      60, startY + cardH + 70
+    );
+    ctx.fillStyle = T.blue;
+    ctx.font      = '20px sans-serif';
+    ctx.fillText('Lowest number = top of the board', 60, startY + cardH + 108);
+  }
+
+  // Footer
+  ctx.fillStyle = T.yellow;
+  ctx.fillRect(0, 1020, 1080, 4);
+  ctx.fillStyle = T.blue;
+  ctx.font      = '18px monospace';
+  ctx.fillText('checkmyspins.com', 60, 1055);
+  ctx.fillStyle = T.mutedText;
+  ctx.font      = '14px sans-serif';
+  ctx.fillText('Independent · Not affiliated with ILWU or Local 23', 60, 1075);
+
+  return canvas;
+}
+
+async function handleShare(member, record, sheet, bestIdx) {
+  if (!member || !record || bestIdx === null || bestIdx === undefined) return;
+  const canvas = generateShareCard(member, record, sheet, bestIdx);
+  canvas.toBlob(async blob => {
+    const file = new File([blob], 'my-spins.png', { type:'image/png' });
+    if (navigator.share && navigator.canShare?.({ files:[file] })) {
+      await navigator.share({
+        files: [file],
+        title: 'My spins this week',
+        text: `Spin ${record?.[DAYS_KEY[bestIdx]]} on ${DAYS_FULL[bestIdx]} — checkmyspins.com`,
+      });
+    } else {
+      const url = URL.createObjectURL(blob);
+      const a   = document.createElement('a');
+      a.href    = url;
+      a.download = 'my-spins.png';
+      a.click();
+      URL.revokeObjectURL(url);
+    }
+  }, 'image/png');
+}
+
 // ─── MAIN ─────────────────────────────────────────────────────────────────────
 function DispatchApp() {
   const [sheets,   setSheets]   = useState(SHEETS_FALLBACK);
@@ -1049,7 +1063,7 @@ function DispatchApp() {
 
       <div style={{ padding:`${T.space[2]}px ${T.space[2]}px 64px` }}>
 
-        <WeekCarousel sheets={relevantSheets} records={resolvedRecords} todayIdx={todayIdx} reg={member?.reg} />
+        <WeekCarousel sheets={relevantSheets} records={resolvedRecords} todayIdx={todayIdx} reg={member?.reg} member={member} />
 
         <button
           onClick={downloadFridayReminder}
@@ -1183,6 +1197,7 @@ function DispatchApp() {
         paddingBottom:"calc(8px + env(safe-area-inset-bottom))",
         lineHeight:1.6,
       }}>
+        <div style={{ marginBottom:8 }}>Your reg number lives on your phone. Nothing leaves your device.</div>
         This is an independent project. Not affiliated with ILWU or Local 23.{" "}
         <a href="/about" style={{ color:T.blue, textDecoration:"none", fontWeight:600, display:"inline-block", padding:"4px 0" }}>About & Roadmap →</a>
         <div style={{ marginTop:8 }}>
@@ -1200,7 +1215,8 @@ export default function App() {
   return (
     <BrowserRouter>
       <Routes>
-        <Route path="/" element={<DispatchApp />} />
+        <Route path="/" element={<HomePage />} />
+        <Route path="/app" element={<DispatchApp />} />
         <Route path="/about" element={<About />} />
       </Routes>
     </BrowserRouter>
