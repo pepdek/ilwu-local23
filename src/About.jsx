@@ -88,7 +88,7 @@ function Hero() {
           maxWidth: 560,
         }}>
           An independent dispatch tool for ILWU Local 23 members
-          at the Port of Tacoma — built by someone who gives a damn.
+          at the Port of Tacoma - built by someone who gives a damn.
         </p>
       </div>
     </section>
@@ -104,7 +104,7 @@ function PrivacyBlock() {
           How your data works
         </div>
         <div style={{ fontFamily: T.fontBody, fontSize: 16, color: T.dark, lineHeight: 1.7 }}>
-          Your registration number is saved in your browser's local storage — the same mechanism a website uses to remember your dark mode preference. <strong>Nothing leaves your device.</strong> There is no CheckMySpins server. There is no account to create, breach, or delete. The spin data comes directly from the public Google Sheet Local 23 already posts every week. The vessel schedule comes from the Northwest Seaport Alliance's public schedule. We read public data and display it on your phone. That's the entire architecture.
+          Your registration number is saved in your browser's local storage - the same mechanism a website uses to remember your dark mode preference. <strong>Nothing leaves your device.</strong> There is no CheckMySpins server. There is no account to create, breach, or delete. The spin data comes directly from the public Google Sheet Local 23 already posts every week. The vessel schedule comes from the Northwest Seaport Alliance's public schedule. We read public data and display it on your phone. That's the entire architecture.
         </div>
       </div>
     </div>
@@ -130,8 +130,8 @@ function Why() {
 
         <div style={{ maxWidth: 640 }}>
           {[
-            `Longshore work is uncertain by design. The dispatch system is fair — the spin system exists to make sure work rotates equitably. Nobody's arguing with that.`,
-            `But the information about that uncertainty — your spin number, the vessels working, the board depth — takes fifteen minutes to find across three different websites on a phone at 5am. Meanwhile someone's waiting for a text. A kid needs to be picked up or not. Plans get made or don't.`,
+            `Longshore work is uncertain by design. The dispatch system is fair - the spin system exists to make sure work rotates equitably. Nobody's arguing with that.`,
+            `But the information about that uncertainty - your spin number, the vessels working, the board depth - takes fifteen minutes to find across three different websites on a phone at 5am. Meanwhile someone's waiting for a text. A kid needs to be picked up or not. Plans get made or don't.`,
             `CheckMySpins doesn't change the uncertainty. It cuts the time between "information available" and "family can plan" from fifteen minutes to fifteen seconds.`,
             `That's the whole thing.`,
           ].map((p, i) => (
@@ -202,7 +202,7 @@ function How() {
     {
       number: "①",
       title: "The Spin Sheet",
-      body: "Every week, Local 23 posts spin numbers to a public Google Sheet. CheckMySpins fetches it directly — no scraping, no copying, no delay. Your number, your week, your best days. Refreshes automatically when the new sheet drops.",
+      body: "Every week, Local 23 posts spin numbers to a public Google Sheet. CheckMySpins fetches it directly - no scraping, no copying, no delay. Your number, your week, your best days. Refreshes automatically when the new sheet drops.",
     },
     {
       number: "②",
@@ -212,7 +212,7 @@ function How() {
     {
       number: "③",
       title: "Your Device",
-      body: "Your registration number is saved to your phone — not a server, not a database, not us. It lives in your browser's local storage and goes nowhere. No account. No login. No data collection. Enter it once, never again.",
+      body: "Your registration number is saved to your phone - not a server, not a database, not us. It lives in your browser's local storage and goes nowhere. No account. No login. No data collection. Enter it once, never again.",
     },
   ];
 
@@ -247,7 +247,7 @@ function What() {
     { label: "Spin Number Lookup",     desc: "Type your reg number once. See your full week instantly." },
     { label: "Best Day Highlighted",   desc: "Your lowest spin is automatically surfaced. No math required." },
     { label: "This Week + Next Week",  desc: "Swipe between current and next week's numbers before Saturday arrives." },
-    { label: "10-Day Vessel Schedule", desc: "Every ship due into Tacoma — terminal, cargo type, ETA. Pulled live from the Northwest Seaport Alliance." },
+    { label: "10-Day Vessel Schedule", desc: "Every ship due into Tacoma - terminal, cargo type, ETA. Pulled live from the Northwest Seaport Alliance." },
     { label: "Live Work Boards",       desc: "One tap to the day and night dispatch boards. No hunting through bookmarks." },
     { label: "Works on Any Phone",     desc: "No app store. No install. Open the browser, bookmark it, add it to your home screen." },
   ];
@@ -304,7 +304,7 @@ const PHASES = [
     status: "LIVE",
     statusBg: "#D1FAE5", statusColor: "#065F46",
     title: "Dispatch Intelligence",
-    desc: "Spin lookup, vessel schedule, best-day highlighting, this week and next week. The core decision tool — should I go in today?",
+    desc: "Spin lookup, vessel schedule, best-day highlighting, this week and next week. The core decision tool - should I go in today?",
     active: true,
   },
   {
@@ -312,7 +312,7 @@ const PHASES = [
     status: "BUILDING",
     statusBg: "#EFF6FF", statusColor: "#1D4ED8",
     title: "Shift Log",
-    desc: "Log your shifts as you work them. Date, terminal, job classification, hours, shift type. Simple, fast, no friction. Your work history lives on your device — the foundation for everything that comes next.",
+    desc: "Log your shifts as you work them. Date, terminal, job classification, hours, shift type. Simple, fast, no friction. Your work history lives on your device - the foundation for everything that comes next.",
     active: true,
   },
   {
@@ -320,7 +320,7 @@ const PHASES = [
     status: "PLANNED",
     statusBg: "#FFFBEB", statusColor: "#92400E",
     title: "Pay Protection",
-    desc: "Enter your weekly gross from your paystub. We calculate what you should have been paid based on your logged shifts and the PMA contract rates. If the numbers don't match, you know before the week is over — not three months later in a grievance.",
+    desc: "Enter your weekly gross from your paystub. We calculate what you should have been paid based on your logged shifts and the PMA contract rates. If the numbers don't match, you know before the week is over - not three months later in a grievance.",
     active: false,
   },
   {
@@ -328,7 +328,7 @@ const PHASES = [
     status: "ROADMAP",
     statusBg: "#F3F4F6", statusColor: "#374151",
     title: "Collective Intelligence",
-    desc: "Opt-in, anonymized, aggregated. Which terminals are dispatching most? Are B men getting their fair share of strad work? What does dispatch look like across the full board — not just for one member, but for all of them? The data the BA needs to see patterns and prevent grievances before they happen.",
+    desc: "Opt-in, anonymized, aggregated. Which terminals are dispatching most? Are B men getting their fair share of strad work? What does dispatch look like across the full board - not just for one member, but for all of them? The data the BA needs to see patterns and prevent grievances before they happen.",
     active: false,
   },
 ];
@@ -357,7 +357,7 @@ function Roadmap() {
           margin: "0 0 48px",
           maxWidth: 580,
         }}>
-          Every feature on this roadmap came from a conversation with a Local 23 member —
+          Every feature on this roadmap came from a conversation with a Local 23 member -
           not a product manager, not a focus group. A longshoreman in Tacoma who said
           "it'd be nice if..." and we wrote it down.
         </p>
@@ -445,9 +445,9 @@ function Independence() {
         {[
           "CheckMySpins is an independent project built by a developer in Tacoma who believes union members deserve better tools.",
           "We are not affiliated with ILWU, ILWU Local 23, PMA, or any employer or government body. We don't speak for the union. We don't negotiate on anyone's behalf.",
-          "The data sources — spin sheets, dispatch boards, vessel schedules — are all public. We surface them in one place without asking for an account, a subscription, or your personal information.",
+          "The data sources - spin sheets, dispatch boards, vessel schedules - are all public. We surface them in one place without asking for an account, a subscription, or your personal information.",
           "No ads. No data selling. No venture capital. No agenda except making the hall work better for the people who work in it.",
-          "If you work at Local 23 and want to shape what gets built — we want to hear from you.",
+          "If you work at Local 23 and want to shape what gets built - we want to hear from you.",
         ].map((p, i) => (
           <p key={i} style={{
             fontFamily: T.fontBody,
@@ -515,7 +515,7 @@ function CTA() {
 
 // ─── PAGE ─────────────────────────────────────────────────────────────────────
 export default function About() {
-  useEffect(() => { document.title = "CheckMySpins — About & Roadmap"; }, []);
+  useEffect(() => { document.title = "CheckMySpins - About & Roadmap"; }, []);
 
   return (
     <div style={{ fontFamily: T.fontBody }}>

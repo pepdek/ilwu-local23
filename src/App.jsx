@@ -242,7 +242,7 @@ function Onboarding({ onSave }) {
 
         {/* Privacy note first — addresses hesitation before the input */}
         <div style={{ fontSize:12, color:T.mutedText, marginBottom:20, lineHeight:1.6 }}>
-          No account needed — stays on your device.
+          No account needed - stays on your device.
         </div>
 
         <label style={{ fontSize:12, fontWeight:600, color:T.mutedText, display:"block", marginBottom:8 }}>Registration #</label>
@@ -269,7 +269,7 @@ function Onboarding({ onSave }) {
             <div style={{ display:"flex", alignItems:"center", gap:10, background:T.successBg, border:`1px solid ${T.blue}`, borderRadius:T.radius.md, padding:`${T.space[1]}px ${T.space[2]}px`, marginBottom:4 }}>
               <span style={{ fontSize:20 }}>✓</span>
               <div style={{ flex:1 }}>
-                <div style={{ fontSize:T.text.sm, fontWeight:700, color:T.blue }}>Found — {found.cls} Class</div>
+                <div style={{ fontSize:T.text.sm, fontWeight:700, color:T.blue }}>Found - {found.cls} Class</div>
                 <div style={{ fontSize:T.text.xs, color:T.muted }}>Class auto-detected from sheet</div>
               </div>
               <div style={{ fontFamily:T.fontBody, fontWeight:700, fontSize:32, color:T.blue, lineHeight:1 }}>{found.cls}</div>
@@ -372,11 +372,11 @@ function WeekCard({ sheet, record, todayIdx, isCurrent, reg, member }) {
           {heroLabel}
         </div>
         <div style={{ fontFamily:"'Bebas Neue', sans-serif", fontSize:84, color:T.navy, letterSpacing:"-2px", lineHeight:1 }}>
-          {heroSpin ?? "—"}
+          {heroSpin ?? "-"}
         </div>
         {isFirstLoad && isCurrent && record && bestIdx !== null && (
           <div style={{ fontSize:T.text.sm, color:T.blue, fontWeight:600, marginTop:4, lineHeight:1.6 }}>
-            Your best day this week is {DAYS_FULL[bestIdx]} — spin {record?.[DAYS_KEY[bestIdx]]}.
+            Your best day this week is {DAYS_FULL[bestIdx]} - spin {record?.[DAYS_KEY[bestIdx]]}.
           </div>
         )}
         <div style={{ height:14 }} />
@@ -418,7 +418,7 @@ function WeekCard({ sheet, record, todayIdx, isCurrent, reg, member }) {
                 {DAYS_ABBR[di]}
               </div>
               <div style={{ fontFamily:T.fontMono, fontWeight:500, fontSize:18, lineHeight:1, color:numColor }}>
-                {spin ?? "—"}
+                {spin ?? "-"}
               </div>
             </button>
           );
@@ -539,7 +539,7 @@ function JobRow({ job, isLast, isHouse }) {
     return (
       <div style={{ fontSize:12, color:T.muted, fontStyle:"italic",
         padding:`${T.space[1]}px ${T.space[2]}px`, borderTop:`1px solid ${T.border}` }}>
-        {job.vessel}{job.terminal ? ` — ${job.terminal}` : ''}
+        {job.vessel}{job.terminal ? ` - ${job.terminal}` : ''}
       </div>
     );
   }
@@ -802,7 +802,7 @@ function generateShareCard(member, record, sheet, bestIdx) {
     // Spin number
     ctx.fillStyle = isBest ? T.navy : T.white;
     ctx.font      = 'bold 58px sans-serif';
-    ctx.fillText(spin ?? '—', x + cardW/2, startY + 106);
+    ctx.fillText(spin ?? '-', x + cardW/2, startY + 106);
 
     // Star on best
     if (isBest) {
@@ -850,7 +850,7 @@ async function handleShare(member, record, sheet, bestIdx) {
       await navigator.share({
         files: [file],
         title: 'My spins this week',
-        text: `Spin ${record?.[DAYS_KEY[bestIdx]]} on ${DAYS_FULL[bestIdx]} — checkmyspins.com`,
+        text: `Spin ${record?.[DAYS_KEY[bestIdx]]} on ${DAYS_FULL[bestIdx]} - checkmyspins.com`,
       });
     } else {
       const url = URL.createObjectURL(blob);
@@ -1042,7 +1042,7 @@ function DispatchApp() {
           )}
           <button
             onClick={resetMember}
-            aria-label={`Reg #${member.reg} — tap to change`}
+            aria-label={`Reg #${member.reg} - tap to change`}
             style={{
               background:"rgba(255,255,255,0.1)",
               border:"1px solid rgba(255,255,255,0.2)",

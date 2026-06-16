@@ -70,7 +70,7 @@ function EmbeddedOnboarding() {
       )}
       {status==='found' && found && (
         <div style={{ fontSize:T.text.xs, color:'#4ade80', marginBottom:12 }}>
-          ✓ Found — {found.cls} Class
+          ✓ Found - {found.cls} Class
         </div>
       )}
       {status==='notfound' && (
@@ -128,13 +128,13 @@ export default function HomePage() {
             A longshoreman finds out at 3pm he's on the night shift.
             His ex-wife has the kids. He needs to coordinate a pickup.
             He's got three tabs open on his phone trying to confirm
-            he's even going in — spins sheet, the board, the vessel schedule.
+            he's even going in - spins sheet, the board, the vessel schedule.
           </p>
           <p style={{ marginBottom:16 }}>
             CheckMySpins puts all three in one place.
             Type your reg number once. See your full week,
             your best day highlighted, the vessels due in,
-            and the night and day boards — all on one screen.
+            and the night and day boards - all on one screen.
           </p>
           <p style={{ borderLeft:`4px solid ${T.yellow}`, paddingLeft:20, color:T.navy, fontWeight:600, fontSize:T.text.lg }}>
             The hall controls the work. You control how fast
@@ -156,7 +156,7 @@ export default function HomePage() {
             {[
               { icon:'🔢', title:'Spin Number Lookup', body:'Type your reg once. See your full week instantly. Best day auto-highlighted.' },
               { icon:'📅', title:'This Week + Next Week', body:"Next week's numbers loaded before Saturday. Plan ahead." },
-              { icon:'⚓', title:'10-Day Vessel Schedule', body:'Every ship due into Tacoma — terminal, cargo, ETA, live ship tracker.' },
+              { icon:'⚓', title:'10-Day Vessel Schedule', body:'Every ship due into Tacoma - terminal, cargo, ETA, live ship tracker.' },
               { icon:'📋', title:'Night + Day Work Board', body:'Mobile-readable dispatch board. No more pinching and zooming.' },
               { icon:'🔔', title:'Friday Reminder', body:'One tap sets a weekly calendar alert for when the new sheet drops.' },
               { icon:'↗', title:'Share My Week', body:'Send your spin card to anyone who needs to know your schedule.' },
@@ -204,7 +204,7 @@ export default function HomePage() {
             NOTHING LEAVES YOUR PHONE.
           </h2>
           <p style={{ fontSize:T.text.base, color:'#90A4B7', lineHeight:1.8, marginBottom:24 }}>
-            Your reg number is saved in your browser's local storage —
+            Your reg number is saved in your browser's local storage -
             the same way a website remembers your dark mode preference.
             There is no CheckMySpins server. No account to create,
             breach, or delete. We read public data from sources the
