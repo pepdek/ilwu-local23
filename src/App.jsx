@@ -191,10 +191,11 @@ function Onboarding({ onSave }) {
         }
         if (match) { setFound(match); setStatus("found"); }
         else setStatus("notfound");
+        // Privacy: no reg numbers, no personal identifiers — anonymous events only
         window.posthog?.capture('reg_lookup', {
-          reg_number: trimmed,
           result: match ? 'found' : 'not_found',
           cls: match?.cls,
+          // reg_number intentionally omitted — covenant: nothing identifying leaves the device
         });
       } catch (err) {
         console.error("lookup error", err);
@@ -205,10 +206,11 @@ function Onboarding({ onSave }) {
         }
         if (match) { setFound(match); setStatus("found"); }
         else setStatus("notfound");
+        // Privacy: no reg numbers, no personal identifiers — anonymous events only
         window.posthog?.capture('reg_lookup', {
-          reg_number: trimmed,
           result: match ? 'found' : 'not_found',
           cls: match?.cls,
+          // reg_number intentionally omitted — covenant: nothing identifying leaves the device
         });
       }
     }, 400);
@@ -294,7 +296,8 @@ function Onboarding({ onSave }) {
           disabled={!active}
           onClick={() => {
             if (!found) return;
-            window.posthog?.capture('member_onboarded', { reg_number: found.reg, cls: found.cls });
+            // Privacy: no reg numbers, no personal identifiers — anonymous events only
+            window.posthog?.capture('member_onboarded', { cls: found.cls });
             onSave({ reg: found.reg, cls: found.cls }, spinsCache);
           }}
           aria-label="Get started"
@@ -402,6 +405,7 @@ function WeekCard({ sheet, record, todayIdx, isCurrent, reg, member }) {
               key={dk}
               onClick={() => {
                 setSelDay(di);
+                // Privacy: no reg numbers, no personal identifiers — anonymous events only
                 window.posthog?.capture('day_selected', { day: DAYS_FULL[di], week: sheet.label });
               }}
               aria-label={`${DAYS_FULL[di]}: spin ${spin ?? "no data"}`}
@@ -495,6 +499,7 @@ function WeekCarousel({ sheets, records, todayIdx, reg, member }) {
           <button
             onClick={() => {
               if (page < sheets.length - 1) {
+                // Privacy: no reg numbers, no personal identifiers — anonymous events only
                 window.posthog?.capture('next_week_viewed', { from_week: sheets[0].label });
                 setPage(1);
               }
@@ -618,6 +623,7 @@ function WorkBoard({ board, liveUrl, lastFetched }) {
         </div>
         <a href={liveUrl} target="_blank" rel="noopener noreferrer"
           style={{ fontSize:12, color:T.blue, fontWeight:600, padding:"8px 0", display:"inline-block" }}
+          // Privacy: no reg numbers, no personal identifiers — anonymous events only
           onClick={() => window.posthog?.capture('external_link_clicked', {
             label: isNight ? 'Night Work Board' : 'Day Work Board', url: liveUrl,
           })}>
@@ -1116,6 +1122,7 @@ function DispatchApp() {
             <a href="https://www.nwseaportalliance.com/cargo-operations/vessel-schedules-and-calendar"
               target="_blank" rel="noopener noreferrer"
               style={{ fontSize:12, color:T.blue, fontWeight:600, padding:"8px 0", display:"inline-block" }}
+              // Privacy: no reg numbers, no personal identifiers — anonymous events only
               onClick={() => window.posthog?.capture('external_link_clicked', {
                 label: 'Full Vessel Schedule', url: 'https://www.nwseaportalliance.com/cargo-operations/vessel-schedules-and-calendar',
               })}>Full schedule ↗</a>
@@ -1171,6 +1178,7 @@ function DispatchApp() {
                       <a
                         href={`https://www.vesselfinder.com/?name=${encodeURIComponent(v.name)}`}
                         target="_blank" rel="noopener noreferrer"
+                        // Privacy: no reg numbers, no personal identifiers — anonymous events only
                         onClick={() => window.posthog?.capture('ship_tracker_clicked', { vessel: v.name })}
                         style={{ fontSize:12, color:T.blue, fontFamily:T.fontMono, fontWeight:600, textDecoration:"none", marginLeft:8, whiteSpace:"nowrap", padding:"6px 0", display:"inline-block" }}>
                         ⚓ TRACK
