@@ -12,6 +12,11 @@ export const SHEETS_FALLBACK = [
     label: "Jun 13 – Jun 19",
     startSat: new Date("2026-06-13"),
   },
+  {
+    id: "1utm3j8J_63ZnHo_zNigIA_PUbzv3XpXG3YQHQrmNtTo",
+    label: "Jun 20 – Jun 26",
+    startSat: new Date("2026-06-20"),
+  },
 ];
 
 export const csvUrl = (id, tab) =>
